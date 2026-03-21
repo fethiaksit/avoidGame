@@ -1,5 +1,6 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { GAME_COLORS } from '../game/constants';
 
@@ -7,6 +8,7 @@ interface GameOverScreenProps {
   score: number;
   highScore: number;
   earnedGold: number;
+  totalGold: number;
   onRetry: () => void;
   onBackToMenu: () => void;
 }
@@ -15,6 +17,7 @@ export const GameOverScreen = ({
   score,
   highScore,
   earnedGold,
+  totalGold,
   onRetry,
   onBackToMenu,
 }: GameOverScreenProps) => {
@@ -25,7 +28,16 @@ export const GameOverScreen = ({
       <Text style={styles.title}>Oyun Bitti</Text>
       <Text style={styles.score}>Skor: {score}</Text>
       <Text style={styles.highScore}>High Score: {highScore}</Text>
-      <Text style={styles.earnedGold}>Earned Gold: 🪙 {earnedGold}</Text>
+
+      <View style={styles.goldRow}>
+        <MaterialCommunityIcons name="gold" size={18} color="#facc15" />
+        <Text style={styles.earnedGold}>Earned: {earnedGold}</Text>
+      </View>
+      <View style={styles.goldRow}>
+        <MaterialCommunityIcons name="gold" size={18} color="#facc15" />
+        <Text style={styles.totalGold}>Total Gold: {totalGold}</Text>
+      </View>
+
       {isNewRecord ? <Text style={styles.recordBadge}>Yeni Rekor!</Text> : null}
 
       <Pressable style={styles.primaryButton} onPress={onRetry}>
@@ -64,11 +76,21 @@ const styles = StyleSheet.create({
     marginTop: 10,
     fontWeight: '700',
   },
+  goldRow: {
+    marginTop: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   earnedGold: {
     color: '#facc15',
     fontSize: 18,
-    marginTop: 10,
-    marginBottom: 10,
+    fontWeight: '700',
+  },
+  totalGold: {
+    color: '#fde047',
+    fontSize: 16,
+    marginBottom: 6,
     fontWeight: '700',
   },
   recordBadge: {
