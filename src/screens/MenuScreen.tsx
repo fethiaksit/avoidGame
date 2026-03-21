@@ -1,12 +1,10 @@
 import React from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { CharacterSkin, CharacterSkinKey, CHARACTER_SKIN_OPTIONS } from '../game/characters';
 import { GAME_COLORS } from '../game/constants';
 import { CharacterUnlockMap } from '../types/game';
-
-// Keep undefined when assets/gold.png is not available in the repository.
-const GOLD_ICON: number | undefined = undefined;
 
 interface MenuScreenProps {
   highScore: number;
@@ -20,12 +18,11 @@ interface MenuScreenProps {
 
 const GoldBadge = ({ amount }: { amount: number }) => (
   <View style={styles.goldRow}>
-    {GOLD_ICON ? (
-      <Image source={GOLD_ICON} style={styles.goldIcon} resizeMode="contain" />
-    ) : (
-      <Text style={styles.goldEmoji}>🪙</Text>
-    )}
-    <Text style={styles.goldText}>{amount}</Text>
+    <MaterialCommunityIcons name="gold" size={20} color="#facc15" />
+    <View>
+      <Text style={styles.goldLabel}>Total Gold</Text>
+      <Text style={styles.goldText}>{amount}</Text>
+    </View>
   </View>
 );
 
@@ -45,19 +42,23 @@ const CharacterCard = ({
   onUnlock: () => void;
 }) => {
   const canAfford = gold >= skin.cost;
+  const stateText = isSelected ? 'Selected' : isUnlocked ? 'Unlocked' : 'Locked';
 
   return (
     <View style={[styles.card, isSelected && styles.cardSelected]}>
-      {skin.image ? (
-        <Image source={skin.image} style={styles.previewImage} resizeMode="cover" />
-      ) : (
-        <View style={[styles.previewFallback, { backgroundColor: skin.placeholderColor }]} />
-      )}
+      <View style={styles.previewWrap}>
+        {skin.image ? (
+          <Image source={skin.image} style={styles.previewImage} resizeMode="cover" />
+        ) : (
+          <View style={[styles.previewFallback, { backgroundColor: skin.placeholderColor }]} />
+        )}
+      </View>
 
       <Text style={styles.skinLabel}>{skin.label}</Text>
+      <Text style={[styles.stateText, isSelected && styles.stateTextSelected]}>{stateText}</Text>
 
       <View style={styles.priceRow}>
-        {GOLD_ICON ? <Image source={GOLD_ICON} style={styles.inlineGoldIcon} resizeMode="contain" /> : null}
+        <MaterialCommunityIcons name="gold" size={14} color="#facc15" />
         <Text style={styles.priceText}>{skin.cost}</Text>
       </View>
 
@@ -65,8 +66,9 @@ const CharacterCard = ({
         <Pressable
           style={[styles.actionButton, isSelected && styles.actionButtonSelected]}
           onPress={onSelect}
+          disabled={isSelected}
         >
-          <Text style={styles.actionButtonText}>{isSelected ? 'Selected' : 'Select'}</Text>
+          <Text style={styles.actionButtonText}>{isSelected ? 'Using' : 'Select'}</Text>
         </Pressable>
       ) : (
         <Pressable
@@ -74,7 +76,7 @@ const CharacterCard = ({
           onPress={onUnlock}
           disabled={!canAfford}
         >
-          <Text style={styles.actionButtonText}>{canAfford ? 'Unlock' : 'Not enough gold'}</Text>
+          <Text style={styles.actionButtonText}>{canAfford ? 'Buy' : 'Need more gold'}</Text>
         </Pressable>
       )}
     </View>
@@ -98,7 +100,12 @@ export const MenuScreen = ({
       <GoldBadge amount={totalGold} />
 
       <View style={styles.shopSection}>
-        <Text style={styles.sectionTitle}>Characters</Text>
+        <View style={styles.shopHeader}>
+          <Ionicons name="storefront" size={20} color={GAME_COLORS.text} />
+          <Text style={styles.sectionTitle}>Shop</Text>
+        </View>
+        <Text style={styles.sectionSubtitle}>Characters</Text>
+
         <View style={styles.shopGrid}>
           {CHARACTER_SKIN_OPTIONS.map((skin) => (
             <CharacterCard
@@ -146,39 +153,56 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   goldRow: {
-    marginTop: 8,
+    marginTop: 10,
     marginBottom: 20,
+    width: '100%',
+    maxWidth: 320,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    justifyContent: 'center',
+    gap: 8,
     backgroundColor: '#111827',
     borderWidth: 1,
-    borderColor: '#374151',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 999,
+    borderColor: '#4b5563',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 14,
   },
-  goldIcon: {
-    width: 18,
-    height: 18,
-  },
-  goldEmoji: {
-    fontSize: 16,
+  goldLabel: {
+    color: GAME_COLORS.mutedText,
+    fontSize: 12,
+    textAlign: 'center',
   },
   goldText: {
     color: '#facc15',
-    fontSize: 16,
+    fontSize: 20,
     fontWeight: '800',
+    textAlign: 'center',
   },
   shopSection: {
     width: '100%',
+    borderWidth: 1,
+    borderColor: '#374151',
+    borderRadius: 14,
+    padding: 12,
     marginBottom: 26,
+    backgroundColor: '#0f172a',
+  },
+  shopHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 4,
   },
   sectionTitle: {
     color: GAME_COLORS.text,
-    fontSize: 20,
+    fontSize: 21,
     fontWeight: '800',
+  },
+  sectionSubtitle: {
+    color: GAME_COLORS.mutedText,
     marginBottom: 10,
+    fontSize: 13,
   },
   shopGrid: {
     width: '100%',
@@ -198,34 +222,44 @@ const styles = StyleSheet.create({
   },
   cardSelected: {
     borderColor: GAME_COLORS.accent,
+    backgroundColor: '#1e293b',
+  },
+  previewWrap: {
+    padding: 4,
+    borderRadius: 10,
+    backgroundColor: '#1f2937',
+    marginBottom: 6,
   },
   previewImage: {
     width: 36,
     height: 36,
     borderRadius: 6,
-    marginBottom: 6,
   },
   previewFallback: {
     width: 36,
     height: 36,
     borderRadius: 6,
-    marginBottom: 6,
   },
   skinLabel: {
     color: GAME_COLORS.text,
     fontSize: 12,
     fontWeight: '800',
+    marginBottom: 3,
+  },
+  stateText: {
+    color: GAME_COLORS.mutedText,
+    fontSize: 11,
+    fontWeight: '700',
     marginBottom: 6,
+  },
+  stateTextSelected: {
+    color: '#34d399',
   },
   priceRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
     marginBottom: 8,
-  },
-  inlineGoldIcon: {
-    width: 14,
-    height: 14,
   },
   priceText: {
     color: '#facc15',

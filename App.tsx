@@ -133,6 +133,7 @@ export default function App() {
             score={score}
             highScore={highScore}
             earnedGold={earnedGold}
+            totalGold={totalGold}
             onRetry={onStart}
             onBackToMenu={onBackToMenu}
           />
