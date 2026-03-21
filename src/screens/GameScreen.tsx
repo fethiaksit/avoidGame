@@ -6,7 +6,7 @@ import { CharacterSkinKey } from '../game/characters';
 import { GAME_COLORS } from '../game/constants';
 
 interface GameScreenProps {
-  onGameOver: (score: number) => void;
+  onGameOver: (score: number, earnedGold: number) => void;
   selectedSkin: CharacterSkinKey;
 }
 

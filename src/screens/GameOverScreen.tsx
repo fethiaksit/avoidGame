@@ -6,11 +6,18 @@ import { GAME_COLORS } from '../game/constants';
 interface GameOverScreenProps {
   score: number;
   highScore: number;
+  earnedGold: number;
   onRetry: () => void;
   onBackToMenu: () => void;
 }
 
-export const GameOverScreen = ({ score, highScore, onRetry, onBackToMenu }: GameOverScreenProps) => {
+export const GameOverScreen = ({
+  score,
+  highScore,
+  earnedGold,
+  onRetry,
+  onBackToMenu,
+}: GameOverScreenProps) => {
   const isNewRecord = score > 0 && score === highScore;
 
   return (
@@ -18,6 +25,7 @@ export const GameOverScreen = ({ score, highScore, onRetry, onBackToMenu }: Game
       <Text style={styles.title}>Oyun Bitti</Text>
       <Text style={styles.score}>Skor: {score}</Text>
       <Text style={styles.highScore}>High Score: {highScore}</Text>
+      <Text style={styles.earnedGold}>Earned Gold: 🪙 {earnedGold}</Text>
       {isNewRecord ? <Text style={styles.recordBadge}>Yeni Rekor!</Text> : null}
 
       <Pressable style={styles.primaryButton} onPress={onRetry}>
@@ -53,6 +61,12 @@ const styles = StyleSheet.create({
   highScore: {
     color: GAME_COLORS.accent,
     fontSize: 21,
+    marginTop: 10,
+    fontWeight: '700',
+  },
+  earnedGold: {
+    color: '#facc15',
+    fontSize: 18,
     marginTop: 10,
     marginBottom: 10,
     fontWeight: '700',

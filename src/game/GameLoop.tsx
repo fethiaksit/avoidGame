@@ -1,11 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  LayoutChangeEvent,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { LayoutChangeEvent, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Canvas } from '@shopify/react-native-skia';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { runOnJS } from 'react-native-reanimated';
@@ -28,7 +22,7 @@ import { PowerUp } from '../components/PowerUp';
 import { GameSnapshot, ObstacleEntity, PlayerEntity, PowerUpEntity } from '../types/game';
 
 interface GameLoopProps {
-  onGameOver: (score: number) => void;
+  onGameOver: (score: number, earnedGold: number) => void;
   selectedSkin: CharacterSkinKey;
 }
 
@@ -41,6 +35,8 @@ interface GameRuntime {
   spawnTimer: number;
   shields: number;
 }
+
+const getEarnedGoldFromScore = (score: number) => Math.max(1, Math.floor(score / 10));
 
 export const GameLoop = ({ onGameOver, selectedSkin }: GameLoopProps) => {
   const [playArea, setPlayArea] = useState({ width: 0, height: 0 });
@@ -91,7 +87,8 @@ export const GameLoop = ({ onGameOver, selectedSkin }: GameLoopProps) => {
   const gameOver = useCallback(() => {
     stopLoop();
     const finalScore = runtimeRef.current ? getScoreFromElapsed(runtimeRef.current.elapsed) : 0;
-    onGameOver(finalScore);
+    const earnedGold = getEarnedGoldFromScore(finalScore);
+    onGameOver(finalScore, earnedGold);
   }, [onGameOver, stopLoop]);
 
   const updateFrame = useCallback(
@@ -303,6 +300,7 @@ export const GameLoop = ({ onGameOver, selectedSkin }: GameLoopProps) => {
                 y={obstacle.y}
                 width={obstacle.width}
                 height={obstacle.height}
+                type={obstacle.type}
                 color={
                   obstacle.type === 'zigzag' ? GAME_COLORS.zigzagObstacle : GAME_COLORS.obstacle
                 }

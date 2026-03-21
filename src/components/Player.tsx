@@ -18,7 +18,7 @@ export const Player = ({ x, y, size, skin, hasShield = false }: PlayerProps) => 
 
   return (
     <>
-      {hasShield && (
+      {hasShield ? (
         <Rect
           x={x - shieldPadding}
           y={y - shieldPadding}
@@ -27,19 +27,12 @@ export const Player = ({ x, y, size, skin, hasShield = false }: PlayerProps) => 
           color={GAME_COLORS.shieldAura}
           opacity={0.25}
         />
+      ) : null}
+      {image ? (
+        <SkiaImage image={image} x={x} y={y} width={size} height={size} fit="cover" />
+      ) : (
+        <Rect x={x} y={y} width={size} height={size} color={GAME_COLORS.player} />
       )}
-      const image = useImage(skin.image);
-
-      return image ? (
-      <SkiaImage
-        image={image}
-        x={x}
-        y={y}
-        width={size}
-        height={size}
-        fit="cover"
-      />
-      ) : null;
     </>
   );
 };

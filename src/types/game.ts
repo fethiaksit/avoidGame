@@ -1,6 +1,10 @@
+import { CharacterSkinKey } from '../game/characters';
+
 export type GameStatus = 'menu' | 'playing' | 'gameOver';
 
 export type EnemyType = 'normal' | 'zigzag';
+
+export type CharacterUnlockMap = Record<CharacterSkinKey, boolean>;
 
 export interface Vector2 {
   x: number;
