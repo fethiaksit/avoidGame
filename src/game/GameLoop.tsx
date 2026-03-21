@@ -1,8 +1,14 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react';
-import { LayoutChangeEvent, Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  LayoutChangeEvent,
+  NativeSyntheticEvent,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  ViewProps,
+} from 'react-native';
 import { Canvas } from '@shopify/react-native-skia';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { runOnJS, useFrameCallback, useSharedValue } from 'react-native-reanimated';
 
 import { GAME_COLORS, GAME_CONFIG } from './constants';
 import { hasCollision } from './collision';
@@ -22,7 +28,6 @@ interface GameRuntime {
   elapsed: number;
   level: number;
   spawnTimer: number;
-  direction: number;
 }
 
 export const GameLoop = ({ onGameOver }: GameLoopProps) => {
@@ -35,40 +40,42 @@ export const GameLoop = ({ onGameOver }: GameLoopProps) => {
     isPaused: false,
   });
 
-  const isRunning = useSharedValue(true);
   const runtimeRef = useRef<GameRuntime | null>(null);
+  const rafIdRef = useRef<number | null>(null);
+  const lastFrameTimeRef = useRef<number | null>(null);
+  const isRunningRef = useRef(false);
 
-  const initRuntime = useCallback(() => {
-    const playerY = playArea.height - GAME_CONFIG.player.bottomOffset - GAME_CONFIG.player.size;
-    runtimeRef.current = {
-      player: {
-        x: Math.max(0, playArea.width / 2 - GAME_CONFIG.player.size / 2),
-        y: playerY,
-        size: GAME_CONFIG.player.size,
-        speed: GAME_CONFIG.player.speed,
-      },
-      obstacles: [],
-      elapsed: 0,
-      level: 0,
-      spawnTimer: 0,
-      direction: 0,
-    };
+  const playerY = playArea.height - GAME_CONFIG.player.bottomOffset - GAME_CONFIG.player.size;
+
+  const syncSnapshot = useCallback(() => {
+    const runtime = runtimeRef.current;
+    if (!runtime) return;
+
     setSnapshot({
-      playerX: Math.max(0, playArea.width / 2 - GAME_CONFIG.player.size / 2),
-      obstacles: [],
-      score: 0,
-      level: 0,
-      isPaused: false,
+      playerX: runtime.player.x,
+      obstacles: runtime.obstacles,
+      score: getScoreFromElapsed(runtime.elapsed),
+      level: runtime.level,
+      isPaused: !isRunningRef.current,
     });
-  }, [playArea.height, playArea.width]);
+  }, []);
+
+  const stopLoop = useCallback(() => {
+    isRunningRef.current = false;
+    if (rafIdRef.current !== null) {
+      cancelAnimationFrame(rafIdRef.current);
+      rafIdRef.current = null;
+    }
+    lastFrameTimeRef.current = null;
+  }, []);
 
   const gameOver = useCallback(() => {
-    isRunning.value = false;
+    stopLoop();
     const finalScore = runtimeRef.current ? getScoreFromElapsed(runtimeRef.current.elapsed) : 0;
     onGameOver(finalScore);
-  }, [isRunning, onGameOver]);
+  }, [onGameOver, stopLoop]);
 
-  const onFrame = useCallback(
+  const updateFrame = useCallback(
     (dt: number) => {
       const runtime = runtimeRef.current;
       if (!runtime || playArea.width <= 0 || playArea.height <= 0) {
@@ -82,9 +89,6 @@ export const GameLoop = ({ onGameOver }: GameLoopProps) => {
         GAME_CONFIG.difficulty.intervalSeconds,
         GAME_CONFIG.difficulty.maxLevel,
       );
-
-      runtime.player.x += runtime.direction * runtime.player.speed * clampedDt;
-      runtime.player.x = Math.max(0, Math.min(runtime.player.x, playArea.width - runtime.player.size));
 
       runtime.spawnTimer += clampedDt;
       const spawnInterval = getSpawnInterval(runtime.level);
@@ -104,64 +108,125 @@ export const GameLoop = ({ onGameOver }: GameLoopProps) => {
         return;
       }
 
-      setSnapshot({
-        playerX: runtime.player.x,
-        obstacles: runtime.obstacles,
-        score: getScoreFromElapsed(runtime.elapsed),
-        level: runtime.level,
-        isPaused: !isRunning.value,
-      });
+      syncSnapshot();
     },
-    [gameOver, isRunning, playArea.height, playArea.width],
+    [gameOver, playArea.height, playArea.width, syncSnapshot],
   );
 
-  useFrameCallback((frame) => {
-    if (!isRunning.value || !runtimeRef.current) return;
-    const dtMs = frame.timeSincePreviousFrame ?? 16;
-    runOnJS(onFrame)(dtMs / 1000);
-  }, true);
+  const loop = useCallback(
+    (time: number) => {
+      if (!isRunningRef.current) return;
 
-  const dragGesture = useMemo(
-    () =>
-      Gesture.Pan()
-        .onStart(() => {
-          if (runtimeRef.current) {
-            runtimeRef.current.direction = 0;
-          }
-        })
-        .onChange((event) => {
-          if (!runtimeRef.current) return;
-          // Drag kontrolünü seçtik çünkü tek hareketle doğal ve stabil bir yatay kontrol sağlıyor.
-          const nextX = runtimeRef.current.player.x + event.changeX;
-          const maxX = playArea.width - runtimeRef.current.player.size;
-          runtimeRef.current.player.x = Math.max(0, Math.min(nextX, maxX));
-        })
-        .onEnd(() => {
-          if (runtimeRef.current) {
-            runtimeRef.current.direction = 0;
-          }
-        }),
-    [playArea.width],
+      const last = lastFrameTimeRef.current ?? time;
+      lastFrameTimeRef.current = time;
+      updateFrame((time - last) / 1000);
+
+      if (isRunningRef.current) {
+        rafIdRef.current = requestAnimationFrame(loop);
+      }
+    },
+    [updateFrame],
+  );
+
+  const startLoop = useCallback(() => {
+    if (isRunningRef.current || !runtimeRef.current) return;
+    isRunningRef.current = true;
+    setSnapshot((prev) => ({ ...prev, isPaused: false }));
+    lastFrameTimeRef.current = null;
+    rafIdRef.current = requestAnimationFrame(loop);
+  }, [loop]);
+
+  const initRuntime = useCallback(() => {
+    const spawnX = Math.max(0, playArea.width / 2 - GAME_CONFIG.player.size / 2);
+    runtimeRef.current = {
+      player: {
+        x: spawnX,
+        y: playerY,
+        size: GAME_CONFIG.player.size,
+        speed: GAME_CONFIG.player.speed,
+      },
+      obstacles: [],
+      elapsed: 0,
+      level: 0,
+      spawnTimer: 0,
+    };
+    setSnapshot({
+      playerX: spawnX,
+      obstacles: [],
+      score: 0,
+      level: 0,
+      isPaused: false,
+    });
+    startLoop();
+  }, [playArea.width, playerY, startLoop]);
+
+  const movePlayerToTouch = useCallback(
+    (touchX: number) => {
+      const runtime = runtimeRef.current;
+      if (!runtime || playArea.width <= 0) return;
+
+      const halfSize = runtime.player.size / 2;
+      const maxX = playArea.width - runtime.player.size;
+      runtime.player.x = Math.max(0, Math.min(touchX - halfSize, maxX));
+      syncSnapshot();
+    },
+    [playArea.width, syncSnapshot],
+  );
+
+  const onTouchStart: ViewProps['onTouchStart'] = useCallback(
+    (event: NativeSyntheticEvent<any>) => {
+      const touch = event.nativeEvent.touches?.[0] ?? event.nativeEvent.changedTouches?.[0];
+      if (!touch) return;
+      movePlayerToTouch(touch.locationX);
+    },
+    [movePlayerToTouch],
+  );
+
+  const onTouchMove: ViewProps['onTouchMove'] = useCallback(
+    (event: NativeSyntheticEvent<any>) => {
+      const touch = event.nativeEvent.touches?.[0] ?? event.nativeEvent.changedTouches?.[0];
+      if (!touch) return;
+      movePlayerToTouch(touch.locationX);
+    },
+    [movePlayerToTouch],
   );
 
   const onLayout = useCallback(
     (event: LayoutChangeEvent) => {
       const { width, height } = event.nativeEvent.layout;
+      if (width === playArea.width && height === playArea.height) return;
+      stopLoop();
       setPlayArea({ width, height });
-      if (width > 0 && height > 0) {
-        requestAnimationFrame(() => {
-          initRuntime();
-          isRunning.value = true;
-        });
-      }
     },
-    [initRuntime, isRunning],
+    [playArea.height, playArea.width, stopLoop],
   );
 
   const togglePause = useCallback(() => {
-    isRunning.value = !isRunning.value;
-    setSnapshot((prev) => ({ ...prev, isPaused: !isRunning.value }));
-  }, [isRunning]);
+    if (isRunningRef.current) {
+      stopLoop();
+      setSnapshot((prev) => ({ ...prev, isPaused: true }));
+      return;
+    }
+
+    if (!runtimeRef.current) {
+      initRuntime();
+      return;
+    }
+
+    startLoop();
+  }, [initRuntime, startLoop, stopLoop]);
+
+  useEffect(() => {
+    if (playArea.width > 0 && playArea.height > 0) {
+      initRuntime();
+    }
+  }, [initRuntime, playArea.height, playArea.width]);
+
+  useEffect(() => {
+    return () => {
+      stopLoop();
+    };
+  }, [stopLoop]);
 
   return (
     <View style={styles.wrapper}>
@@ -173,28 +238,21 @@ export const GameLoop = ({ onGameOver }: GameLoopProps) => {
         </Pressable>
       </View>
 
-      <GestureDetector gesture={dragGesture}>
-        <View style={styles.canvasContainer} onLayout={onLayout}>
-          <Canvas style={styles.canvas}>
-            <Player
-              x={snapshot.playerX}
-              y={playArea.height - GAME_CONFIG.player.bottomOffset - GAME_CONFIG.player.size}
-              size={GAME_CONFIG.player.size}
-              color={GAME_COLORS.player}
+      <View style={styles.canvasContainer} onLayout={onLayout} onTouchStart={onTouchStart} onTouchMove={onTouchMove}>
+        <Canvas style={styles.canvas}>
+          <Player x={snapshot.playerX} y={playerY} size={GAME_CONFIG.player.size} color={GAME_COLORS.player} />
+          {snapshot.obstacles.map((obstacle) => (
+            <Obstacle
+              key={obstacle.id}
+              x={obstacle.x}
+              y={obstacle.y}
+              width={obstacle.width}
+              height={obstacle.height}
+              color={GAME_COLORS.obstacle}
             />
-            {snapshot.obstacles.map((obstacle) => (
-              <Obstacle
-                key={obstacle.id}
-                x={obstacle.x}
-                y={obstacle.y}
-                width={obstacle.width}
-                height={obstacle.height}
-                color={GAME_COLORS.obstacle}
-              />
-            ))}
-          </Canvas>
-        </View>
-      </GestureDetector>
+          ))}
+        </Canvas>
+      </View>
     </View>
   );
 };
