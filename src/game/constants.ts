@@ -14,15 +14,15 @@ export const GAME_COLORS = {
 
 export const GAME_CONFIG = {
   player: {
-    size: 34,
+    size: 64,
     bottomOffset: 48,
     speed: 420,
     smoothing: 20,
   },
   obstacle: {
-    minSize: 26,
-    maxSize: 54,
-    baseSpeed: 130,
+    minSize: 70,
+    maxSize: 90,
+    baseSpeed: 110,
     speedStep: 22,
     speedRampPerSecond: 3,
     maxSpeedMultiplier: 2.4,
@@ -41,7 +41,7 @@ export const GAME_CONFIG = {
     maxOnScreen: 1,
   },
   gold: {
-    size: 20,
+    size: 30,
     baseSpeed: 115,
     spawnChancePerSecond: 0.5,
     maxOnScreen: 3,
