@@ -1,14 +1,14 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   LayoutChangeEvent,
-  NativeSyntheticEvent,
   Pressable,
   StyleSheet,
   Text,
   View,
-  ViewProps,
 } from 'react-native';
 import { Canvas } from '@shopify/react-native-skia';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { runOnJS } from 'react-native-reanimated';
 
 import { GAME_COLORS, GAME_CONFIG } from './constants';
 import { hasCollision } from './collision';
@@ -173,23 +173,13 @@ export const GameLoop = ({ onGameOver }: GameLoopProps) => {
     [playArea.width, syncSnapshot],
   );
 
-  const onTouchStart: ViewProps['onTouchStart'] = useCallback(
-    (event: NativeSyntheticEvent<any>) => {
-      const touch = event.nativeEvent.touches?.[0] ?? event.nativeEvent.changedTouches?.[0];
-      if (!touch) return;
-      movePlayerToTouch(touch.locationX);
-    },
-    [movePlayerToTouch],
-  );
-
-  const onTouchMove: ViewProps['onTouchMove'] = useCallback(
-    (event: NativeSyntheticEvent<any>) => {
-      const touch = event.nativeEvent.touches?.[0] ?? event.nativeEvent.changedTouches?.[0];
-      if (!touch) return;
-      movePlayerToTouch(touch.locationX);
-    },
-    [movePlayerToTouch],
-  );
+  const panGesture = Gesture.Pan()
+    .onBegin((event) => {
+      runOnJS(movePlayerToTouch)(event.x);
+    })
+    .onUpdate((event) => {
+      runOnJS(movePlayerToTouch)(event.x);
+    });
 
   const onLayout = useCallback(
     (event: LayoutChangeEvent) => {
@@ -238,21 +228,23 @@ export const GameLoop = ({ onGameOver }: GameLoopProps) => {
         </Pressable>
       </View>
 
-      <View style={styles.canvasContainer} onLayout={onLayout} onTouchStart={onTouchStart} onTouchMove={onTouchMove}>
-        <Canvas style={styles.canvas}>
-          <Player x={snapshot.playerX} y={playerY} size={GAME_CONFIG.player.size} color={GAME_COLORS.player} />
-          {snapshot.obstacles.map((obstacle) => (
-            <Obstacle
-              key={obstacle.id}
-              x={obstacle.x}
-              y={obstacle.y}
-              width={obstacle.width}
-              height={obstacle.height}
-              color={GAME_COLORS.obstacle}
-            />
-          ))}
-        </Canvas>
-      </View>
+      <GestureDetector gesture={panGesture}>
+        <View style={styles.canvasContainer} onLayout={onLayout}>
+          <Canvas style={styles.canvas}>
+            <Player x={snapshot.playerX} y={playerY} size={GAME_CONFIG.player.size} color={GAME_COLORS.player} />
+            {snapshot.obstacles.map((obstacle) => (
+              <Obstacle
+                key={obstacle.id}
+                x={obstacle.x}
+                y={obstacle.y}
+                width={obstacle.width}
+                height={obstacle.height}
+                color={GAME_COLORS.obstacle}
+              />
+            ))}
+          </Canvas>
+        </View>
+      </GestureDetector>
     </View>
   );
 };
