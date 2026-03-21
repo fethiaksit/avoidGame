@@ -1,0 +1,17 @@
+{
+  "expo": {
+    "name": "avoid",
+    "slug": "avoid",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#111827"
+      }
+    }
+  }
+}
