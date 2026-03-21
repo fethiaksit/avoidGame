@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, SafeAreaView, StyleSheet } from 'react-native';
+import { ActivityIndicator, StyleSheet } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { GameOverScreen } from './src/screens/GameOverScreen';
 import { GameScreen } from './src/screens/GameScreen';
@@ -41,31 +43,38 @@ export default function App() {
 
   if (!isReady) {
     return (
-      <SafeAreaView style={styles.loaderContainer}>
-        <StatusBar style="light" />
-        <ActivityIndicator size="large" color={GAME_COLORS.accent} />
-      </SafeAreaView>
+      <GestureHandlerRootView style={styles.root}>
+        <SafeAreaView style={styles.loaderContainer}>
+          <StatusBar style="light" />
+          <ActivityIndicator size="large" color={GAME_COLORS.accent} />
+        </SafeAreaView>
+      </GestureHandlerRootView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.appContainer}>
-      <StatusBar style="light" />
-      {status === 'menu' ? <MenuScreen highScore={highScore} onStart={onStart} /> : null}
-      {status === 'playing' ? <GameScreen onGameOver={onGameOver} /> : null}
-      {status === 'gameOver' ? (
-        <GameOverScreen
-          score={score}
-          highScore={highScore}
-          onRetry={onStart}
-          onBackToMenu={onBackToMenu}
-        />
-      ) : null}
-    </SafeAreaView>
+    <GestureHandlerRootView style={styles.root}>
+      <SafeAreaView style={styles.appContainer}>
+        <StatusBar style="light" />
+        {status === 'menu' ? <MenuScreen highScore={highScore} onStart={onStart} /> : null}
+        {status === 'playing' ? <GameScreen onGameOver={onGameOver} /> : null}
+        {status === 'gameOver' ? (
+          <GameOverScreen
+            score={score}
+            highScore={highScore}
+            onRetry={onStart}
+            onBackToMenu={onBackToMenu}
+          />
+        ) : null}
+      </SafeAreaView>
+    </GestureHandlerRootView>
   );
 }
 
 const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+  },
   appContainer: {
     flex: 1,
     backgroundColor: GAME_COLORS.background,
