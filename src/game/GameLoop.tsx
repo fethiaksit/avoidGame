@@ -3,6 +3,7 @@ import { LayoutChangeEvent, Pressable, StyleSheet, Text, View } from 'react-nati
 import { Canvas } from '@shopify/react-native-skia';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { runOnJS } from 'react-native-reanimated';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { CHARACTER_SKINS, CharacterSkinKey } from './characters';
 import { GAME_COLORS, GAME_CONFIG } from './constants';
@@ -320,16 +321,20 @@ export const GameLoop = ({ onGameOver, selectedSkin, totalGold }: GameLoopProps)
   return (
     <View style={styles.wrapper}>
       <View style={styles.header}>
-        <Text style={styles.headerText}>Skor: {snapshot.score}</Text>
-        <Text style={styles.headerText}>Seviye: {snapshot.level + 1}</Text>
-        <Text style={styles.headerText}>Kalkan: {snapshot.shields}</Text>
+        <Text style={styles.headerText}>Score: {snapshot.score}</Text>
+        <Text style={styles.headerText}>Level: {snapshot.level + 1}</Text>
+        <Text style={styles.headerText}>Shields: {snapshot.shields}</Text>
         <View style={styles.goldButton}>
-          <Text style={styles.goldFallback}>●</Text>
+          <MaterialCommunityIcons name="gold" size={14} color="#facc15" />
           <Text style={styles.goldCount}>{totalGold}</Text>
           <Text style={styles.goldEarned}>+{snapshot.earnedGold}</Text>
         </View>
         <Pressable onPress={togglePause} style={styles.pauseButton}>
-          <Text style={styles.pauseButtonText}>{snapshot.isPaused ? 'Devam' : 'Duraklat'}</Text>
+          <Ionicons
+            name={snapshot.isPaused ? 'play' : 'pause'}
+            size={18}
+            color={GAME_COLORS.text}
+          />
         </Pressable>
       </View>
 
@@ -405,13 +410,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 6,
   },
-  goldFallback: {
-    color: '#facc15',
-    fontSize: 14,
-    fontWeight: '800',
-    width: 12,
-    textAlign: 'center',
-  },
   goldCount: {
     color: '#facc15',
     fontSize: 14,
@@ -425,13 +423,8 @@ const styles = StyleSheet.create({
   pauseButton: {
     backgroundColor: '#1f2937',
     borderRadius: 8,
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     paddingVertical: 8,
-  },
-  pauseButtonText: {
-    color: GAME_COLORS.text,
-    fontSize: 13,
-    fontWeight: '600',
   },
   canvasContainer: {
     flex: 1,
