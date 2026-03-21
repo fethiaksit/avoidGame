@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 
@@ -92,34 +92,56 @@ export const MenuScreen = ({
   onSelectSkin,
   onUnlockSkin,
 }: MenuScreenProps) => {
+  const [isStoreOpen, setIsStoreOpen] = useState(false);
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>avoid</Text>
       <Text style={styles.subtitle}>Endless Dodge Survival</Text>
       <Text style={styles.highScore}>High Score: {highScore}</Text>
-      <GoldBadge amount={totalGold} />
+      {!isStoreOpen && <GoldBadge amount={totalGold} />}
 
-      <View style={styles.shopSection}>
-        <View style={styles.shopHeader}>
+      {!isStoreOpen ? (
+        <Pressable style={styles.storeButton} onPress={() => setIsStoreOpen(true)}>
           <Ionicons name="storefront" size={20} color={GAME_COLORS.text} />
-          <Text style={styles.sectionTitle}>Shop</Text>
-        </View>
-        <Text style={styles.sectionSubtitle}>Characters</Text>
+          <Text style={styles.storeButtonText}>Store</Text>
+        </Pressable>
+      ) : (
+        <View style={styles.shopSection}>
+          <View style={styles.shopHeaderRow}>
+            <View style={styles.shopHeader}>
+              <Ionicons name="storefront" size={20} color={GAME_COLORS.text} />
+              <Text style={styles.sectionTitle}>Shop</Text>
+            </View>
 
-        <View style={styles.shopGrid}>
-          {CHARACTER_SKIN_OPTIONS.map((skin) => (
-            <CharacterCard
-              key={skin.key}
-              skin={skin}
-              gold={totalGold}
-              isUnlocked={unlockedCharacters[skin.key]}
-              isSelected={selectedSkin === skin.key}
-              onSelect={() => onSelectSkin(skin.key)}
-              onUnlock={() => onUnlockSkin(skin.key)}
-            />
-          ))}
+            <View style={styles.shopGoldRow}>
+              <MaterialCommunityIcons name="gold" size={16} color="#facc15" />
+              <Text style={styles.shopGoldText}>{totalGold}</Text>
+            </View>
+          </View>
+
+          <Text style={styles.sectionSubtitle}>Characters</Text>
+
+          <View style={styles.shopGrid}>
+            {CHARACTER_SKIN_OPTIONS.map((skin) => (
+              <CharacterCard
+                key={skin.key}
+                skin={skin}
+                gold={totalGold}
+                isUnlocked={unlockedCharacters[skin.key]}
+                isSelected={selectedSkin === skin.key}
+                onSelect={() => onSelectSkin(skin.key)}
+                onUnlock={() => onUnlockSkin(skin.key)}
+              />
+            ))}
+          </View>
+
+          <Pressable style={styles.closeButton} onPress={() => setIsStoreOpen(false)}>
+            <Ionicons name="arrow-back" size={18} color={GAME_COLORS.text} />
+            <Text style={styles.closeButtonText}>Back</Text>
+          </Pressable>
         </View>
-      </View>
+      )}
 
       <Pressable style={styles.button} onPress={onStart}>
         <Text style={styles.buttonText}>Başlat</Text>
@@ -192,7 +214,28 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+  },
+  shopHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 4,
+  },
+  shopGoldRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#111827',
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#4b5563',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  shopGoldText: {
+    color: '#facc15',
+    fontSize: 14,
+    fontWeight: '800',
   },
   sectionTitle: {
     color: GAME_COLORS.text,
@@ -282,6 +325,37 @@ const styles = StyleSheet.create({
   actionButtonText: {
     color: GAME_COLORS.text,
     fontSize: 12,
+    fontWeight: '700',
+  },
+  storeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#2563eb',
+    borderRadius: 12,
+    paddingHorizontal: 22,
+    paddingVertical: 12,
+    marginBottom: 14,
+  },
+  storeButtonText: {
+    color: GAME_COLORS.text,
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  closeButton: {
+    marginTop: 14,
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#374151',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  closeButtonText: {
+    color: GAME_COLORS.text,
+    fontSize: 14,
     fontWeight: '700',
   },
   button: {
