@@ -1,4 +1,4 @@
-import { ObstacleEntity, PlayerEntity, PowerUpEntity } from '../types/game';
+import { GoldEntity, ObstacleEntity, PlayerEntity, PowerUpEntity } from '../types/game';
 
 export const isColliding = (
   player: Pick<PlayerEntity, 'x' | 'y' | 'size'>,
@@ -25,6 +25,25 @@ export const getCollectedPowerUpIndexes = (
 ): number[] => {
   return powerUps.reduce<number[]>((indexes, powerUp, index) => {
     if (isColliding(player, powerUp)) {
+      indexes.push(index);
+    }
+    return indexes;
+  }, []);
+};
+
+export const getCollectedGoldIndexes = (
+  player: PlayerEntity,
+  goldItems: GoldEntity[],
+): number[] => {
+  return goldItems.reduce<number[]>((indexes, gold, index) => {
+    if (
+      isColliding(player, {
+        x: gold.x,
+        y: gold.y,
+        width: gold.size,
+        height: gold.size,
+      })
+    ) {
       indexes.push(index);
     }
     return indexes;
