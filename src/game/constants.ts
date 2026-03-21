@@ -4,6 +4,7 @@ export const GAME_COLORS = {
   obstacle: '#f87171',
   zigzagObstacle: '#fb923c',
   shieldPowerUp: '#facc15',
+  gold: '#fbbf24',
   shieldAura: '#93c5fd',
   text: '#e5e7eb',
   mutedText: '#9ca3af',
@@ -38,6 +39,12 @@ export const GAME_CONFIG = {
     baseSpeed: 110,
     spawnChancePerSecond: 0.07,
     maxOnScreen: 1,
+  },
+  gold: {
+    size: 20,
+    baseSpeed: 115,
+    spawnChancePerSecond: 0.5,
+    maxOnScreen: 3,
   },
   spawn: {
     baseInterval: 0.85,

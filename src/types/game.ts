@@ -43,12 +43,22 @@ export interface PowerUpEntity {
   speed: number;
 }
 
+export interface GoldEntity {
+  id: number;
+  x: number;
+  y: number;
+  size: number;
+  speed: number;
+}
+
 export interface GameSnapshot {
   playerX: number;
   obstacles: ObstacleEntity[];
   powerUps: PowerUpEntity[];
+  goldItems: GoldEntity[];
   score: number;
   level: number;
   isPaused: boolean;
   shields: number;
+  earnedGold: number;
 }

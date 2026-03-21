@@ -1,17 +1,20 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Image, LayoutChangeEvent, Pressable, StyleSheet, Text, View } from 'react-native';
+import { LayoutChangeEvent, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Canvas } from '@shopify/react-native-skia';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { runOnJS } from 'react-native-reanimated';
 
 import { CHARACTER_SKINS, CharacterSkinKey } from './characters';
 import { GAME_COLORS, GAME_CONFIG } from './constants';
-import { getCollectedPowerUpIndexes, getFirstCollidingObstacleIndex } from './collision';
+import { getCollectedGoldIndexes, getCollectedPowerUpIndexes, getFirstCollidingObstacleIndex } from './collision';
 import {
+  createGold,
   createObstacle,
   createShieldPowerUp,
   getSpawnInterval,
+  shouldSpawnGold,
   shouldSpawnShieldPowerUp,
+  updateGold,
   updateObstacles,
   updatePowerUps,
 } from './obstacleManager';
@@ -19,39 +22,40 @@ import { getDifficultyLevel, getScoreFromElapsed } from './scoreManager';
 import { Obstacle } from '../components/Obstacle';
 import { Player } from '../components/Player';
 import { PowerUp } from '../components/PowerUp';
-import { GameSnapshot, ObstacleEntity, PlayerEntity, PowerUpEntity } from '../types/game';
+import { Gold } from '../components/Gold';
+import { GameSnapshot, GoldEntity, ObstacleEntity, PlayerEntity, PowerUpEntity } from '../types/game';
 
 interface GameLoopProps {
   onGameOver: (score: number, earnedGold: number) => void;
   selectedSkin: CharacterSkinKey;
   totalGold: number;
-  onTapGold: () => void;
 }
 
 interface GameRuntime {
   player: PlayerEntity;
   obstacles: ObstacleEntity[];
   powerUps: PowerUpEntity[];
+  goldItems: GoldEntity[];
+  earnedGold: number;
   elapsed: number;
   level: number;
   spawnTimer: number;
   shields: number;
 }
 
-const goldIconSource = require('../../assets/gold.png');
-
-export const GameLoop = ({ onGameOver, selectedSkin, totalGold, onTapGold }: GameLoopProps) => {
+export const GameLoop = ({ onGameOver, selectedSkin, totalGold }: GameLoopProps) => {
   const [playArea, setPlayArea] = useState({ width: 0, height: 0 });
   const [snapshot, setSnapshot] = useState<GameSnapshot>({
     playerX: 0,
     obstacles: [],
     powerUps: [],
+    goldItems: [],
     score: 0,
     level: 0,
     isPaused: false,
     shields: 0,
+    earnedGold: 0,
   });
-  const [isGoldIconFailed, setIsGoldIconFailed] = useState(false);
 
   const runtimeRef = useRef<GameRuntime | null>(null);
   const rafIdRef = useRef<number | null>(null);
@@ -75,6 +79,8 @@ export const GameLoop = ({ onGameOver, selectedSkin, totalGold, onTapGold }: Gam
       level: runtime.level,
       isPaused: !isRunningRef.current,
       shields: runtime.shields,
+      goldItems: runtime.goldItems,
+      earnedGold: runtime.earnedGold,
     });
   }, []);
 
@@ -90,7 +96,7 @@ export const GameLoop = ({ onGameOver, selectedSkin, totalGold, onTapGold }: Gam
   const gameOver = useCallback(() => {
     stopLoop();
     const finalScore = runtimeRef.current ? getScoreFromElapsed(runtimeRef.current.elapsed) : 0;
-    const earnedGold = 0;
+    const earnedGold = runtimeRef.current?.earnedGold ?? 0;
     onGameOver(finalScore, earnedGold);
   }, [onGameOver, stopLoop]);
 
@@ -133,13 +139,27 @@ export const GameLoop = ({ onGameOver, selectedSkin, totalGold, onTapGold }: Gam
         runtime.powerUps.push(createShieldPowerUp(playArea.width));
       }
 
+      const shouldSpawnGoldItem =
+        runtime.goldItems.length < GAME_CONFIG.gold.maxOnScreen && shouldSpawnGold(clampedDt);
+
+      if (shouldSpawnGoldItem) {
+        runtime.goldItems.push(createGold(playArea.width));
+      }
+
       runtime.obstacles = updateObstacles(runtime.obstacles, clampedDt, playArea.width, playArea.height);
       runtime.powerUps = updatePowerUps(runtime.powerUps, clampedDt, playArea.height);
+      runtime.goldItems = updateGold(runtime.goldItems, clampedDt, playArea.height);
 
       const collectedPowerUpIndexes = getCollectedPowerUpIndexes(runtime.player, runtime.powerUps);
       if (collectedPowerUpIndexes.length > 0) {
         runtime.shields += collectedPowerUpIndexes.length;
         runtime.powerUps = runtime.powerUps.filter((_, index) => !collectedPowerUpIndexes.includes(index));
+      }
+
+      const collectedGoldIndexes = getCollectedGoldIndexes(runtime.player, runtime.goldItems);
+      if (collectedGoldIndexes.length > 0) {
+        runtime.earnedGold += collectedGoldIndexes.length;
+        runtime.goldItems = runtime.goldItems.filter((_, index) => !collectedGoldIndexes.includes(index));
       }
 
       const collisionIndex = getFirstCollidingObstacleIndex(runtime.player, runtime.obstacles);
@@ -197,6 +217,8 @@ export const GameLoop = ({ onGameOver, selectedSkin, totalGold, onTapGold }: Gam
       },
       obstacles: [],
       powerUps: [],
+      goldItems: [],
+      earnedGold: 0,
       elapsed: 0,
       level: 0,
       spawnTimer: 0,
@@ -206,10 +228,12 @@ export const GameLoop = ({ onGameOver, selectedSkin, totalGold, onTapGold }: Gam
       playerX: spawnX,
       obstacles: [],
       powerUps: [],
+      goldItems: [],
       score: 0,
       level: 0,
       isPaused: false,
       shields: 0,
+      earnedGold: 0,
     });
     startLoop();
   }, [startLoop]);
@@ -299,18 +323,11 @@ export const GameLoop = ({ onGameOver, selectedSkin, totalGold, onTapGold }: Gam
         <Text style={styles.headerText}>Skor: {snapshot.score}</Text>
         <Text style={styles.headerText}>Seviye: {snapshot.level + 1}</Text>
         <Text style={styles.headerText}>Kalkan: {snapshot.shields}</Text>
-        <Pressable onPress={onTapGold} style={styles.goldButton}>
-          {isGoldIconFailed ? (
-            <Text style={styles.goldFallback}>G</Text>
-          ) : (
-            <Image
-              source={goldIconSource}
-              style={styles.goldIcon}
-              onError={() => setIsGoldIconFailed(true)}
-            />
-          )}
+        <View style={styles.goldButton}>
+          <Text style={styles.goldFallback}>●</Text>
           <Text style={styles.goldCount}>{totalGold}</Text>
-        </Pressable>
+          <Text style={styles.goldEarned}>+{snapshot.earnedGold}</Text>
+        </View>
         <Pressable onPress={togglePause} style={styles.pauseButton}>
           <Text style={styles.pauseButtonText}>{snapshot.isPaused ? 'Devam' : 'Duraklat'}</Text>
         </Pressable>
@@ -349,6 +366,9 @@ export const GameLoop = ({ onGameOver, selectedSkin, totalGold, onTapGold }: Gam
                 color={GAME_COLORS.shieldPowerUp}
               />
             ))}
+            {snapshot.goldItems.map((gold) => (
+              <Gold key={gold.id} x={gold.x} y={gold.y} size={gold.size} color={GAME_COLORS.gold} />
+            ))}
           </Canvas>
         </View>
       </GestureDetector>
@@ -385,20 +405,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 6,
   },
-  goldIcon: {
-    width: 18,
-    height: 18,
-  },
   goldFallback: {
     color: '#facc15',
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '800',
-    width: 18,
+    width: 12,
     textAlign: 'center',
   },
   goldCount: {
     color: '#facc15',
     fontSize: 14,
+    fontWeight: '700',
+  },
+  goldEarned: {
+    color: '#fde68a',
+    fontSize: 13,
     fontWeight: '700',
   },
   pauseButton: {

@@ -9,17 +9,15 @@ interface GameScreenProps {
   onGameOver: (score: number, earnedGold: number) => void;
   selectedSkin: CharacterSkinKey;
   totalGold: number;
-  onTapGold: () => void;
 }
 
-export const GameScreen = ({ onGameOver, selectedSkin, totalGold, onTapGold }: GameScreenProps) => {
+export const GameScreen = ({ onGameOver, selectedSkin, totalGold }: GameScreenProps) => {
   return (
     <SafeAreaView style={styles.container}>
       <GameLoop
         onGameOver={onGameOver}
         selectedSkin={selectedSkin}
         totalGold={totalGold}
-        onTapGold={onTapGold}
       />
     </SafeAreaView>
   );

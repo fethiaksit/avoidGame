@@ -1,8 +1,9 @@
 import { GAME_CONFIG } from './constants';
-import { ObstacleEntity, PowerUpEntity } from '../types/game';
+import { GoldEntity, ObstacleEntity, PowerUpEntity } from '../types/game';
 
 let obstacleId = 1;
 let powerUpId = 1;
+let goldId = 1;
 
 const randomBetween = (min: number, max: number) => min + Math.random() * (max - min);
 
@@ -129,6 +130,31 @@ export const updatePowerUps = (
     .filter((powerUp) => powerUp.y < playAreaHeight + powerUp.height + 20);
 };
 
+export const createGold = (playAreaWidth: number): GoldEntity => {
+  const size = GAME_CONFIG.gold.size;
+  const paddedArea = playAreaWidth - size - GAME_CONFIG.spawn.lanePadding * 2;
+  const x =
+    GAME_CONFIG.spawn.lanePadding +
+    Math.max(0, randomBetween(0, Math.max(0, paddedArea)));
+
+  return {
+    id: goldId++,
+    x,
+    y: -size - 10,
+    size,
+    speed: GAME_CONFIG.gold.baseSpeed,
+  };
+};
+
+export const updateGold = (goldItems: GoldEntity[], dt: number, playAreaHeight: number): GoldEntity[] => {
+  return goldItems
+    .map((gold) => ({
+      ...gold,
+      y: gold.y + gold.speed * dt,
+    }))
+    .filter((gold) => gold.y < playAreaHeight + gold.size + 20);
+};
+
 export const getSpawnInterval = (elapsed: number) => {
   return Math.max(
     GAME_CONFIG.spawn.minInterval,
@@ -138,4 +164,8 @@ export const getSpawnInterval = (elapsed: number) => {
 
 export const shouldSpawnShieldPowerUp = (dt: number) => {
   return Math.random() < GAME_CONFIG.powerUp.spawnChancePerSecond * dt;
+};
+
+export const shouldSpawnGold = (dt: number) => {
+  return Math.random() < GAME_CONFIG.gold.spawnChancePerSecond * dt;
 };

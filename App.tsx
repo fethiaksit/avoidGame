@@ -84,22 +84,20 @@ export default function App() {
     [totalGold, unlockedCharacters],
   );
 
-  const onGameOver = useCallback(async (finalScore: number) => {
+  const onGameOver = useCallback(async (finalScore: number, runEarnedGold: number) => {
     setScore(finalScore);
+    setEarnedGold(runEarnedGold);
     setStatus('gameOver');
+
+    if (runEarnedGold > 0) {
+      const nextGold = totalGold + runEarnedGold;
+      setTotalGold(nextGold);
+      await saveGold(nextGold);
+    }
 
     const best = await saveHighScoreIfNeeded(finalScore);
     setHighScore(best);
-  }, []);
-
-  const onTapGold = useCallback(() => {
-    setTotalGold((prevGold) => {
-      const nextGold = prevGold + 1;
-      void saveGold(nextGold);
-      return nextGold;
-    });
-    setEarnedGold((prevEarnedGold) => prevEarnedGold + 1);
-  }, []);
+  }, [totalGold]);
 
   const onBackToMenu = useCallback(() => setStatus('menu'), []);
 
@@ -134,7 +132,6 @@ export default function App() {
             onGameOver={onGameOver}
             selectedSkin={selectedSkin}
             totalGold={totalGold}
-            onTapGold={onTapGold}
           />
         ) : null}
         {status === 'gameOver' ? (
