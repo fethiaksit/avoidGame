@@ -7,24 +7,41 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { GameOverScreen } from './src/screens/GameOverScreen';
 import { GameScreen } from './src/screens/GameScreen';
 import { MenuScreen } from './src/screens/MenuScreen';
-import { DEFAULT_CHARACTER_SKIN, CharacterSkinKey } from './src/game/characters';
+import {
+  CharacterSkinKey,
+  CHARACTER_SKINS,
+  DEFAULT_CHARACTER_SKIN,
+  getDefaultUnlockMap,
+} from './src/game/characters';
 import { GAME_COLORS } from './src/game/constants';
-import { getCharacterSkin, setCharacterSkin } from './src/storage/characterSkin';
 import { getHighScore, saveHighScoreIfNeeded } from './src/storage/highScore';
-import { GameStatus } from './src/types/game';
+import {
+  loadProgression,
+  saveGold,
+  saveSelectedCharacter,
+  saveUnlockedCharacters,
+} from './src/storage/progression';
+import { CharacterUnlockMap, GameStatus } from './src/types/game';
 
 export default function App() {
   const [status, setStatus] = useState<GameStatus>('menu');
   const [isReady, setIsReady] = useState(false);
   const [score, setScore] = useState(0);
+  const [earnedGold, setEarnedGold] = useState(0);
   const [highScore, setHighScore] = useState(0);
+  const [totalGold, setTotalGold] = useState(0);
   const [selectedSkin, setSelectedSkin] = useState<CharacterSkinKey>(DEFAULT_CHARACTER_SKIN);
+  const [unlockedCharacters, setUnlockedCharacters] = useState<CharacterUnlockMap>(
+    getDefaultUnlockMap(),
+  );
 
   useEffect(() => {
     const loadAppData = async () => {
-      const [best, savedSkin] = await Promise.all([getHighScore(), getCharacterSkin()]);
+      const [best, progression] = await Promise.all([getHighScore(), loadProgression()]);
       setHighScore(best);
-      setSelectedSkin(savedSkin);
+      setTotalGold(progression.gold);
+      setSelectedSkin(progression.selectedCharacter);
+      setUnlockedCharacters(progression.unlockedCharacters);
       setIsReady(true);
     };
 
@@ -33,19 +50,52 @@ export default function App() {
 
   const onStart = useCallback(() => {
     setScore(0);
+    setEarnedGold(0);
     setStatus('playing');
   }, []);
 
-  const onSelectSkin = useCallback(async (skin: CharacterSkinKey) => {
-    setSelectedSkin(skin);
-    await setCharacterSkin(skin);
-  }, []);
-  const onGameOver = useCallback(async (finalScore: number) => {
+  const onSelectSkin = useCallback(
+    async (skin: CharacterSkinKey) => {
+      if (!unlockedCharacters[skin]) return;
+      setSelectedSkin(skin);
+      await saveSelectedCharacter(skin);
+    },
+    [unlockedCharacters],
+  );
+
+  const onUnlockSkin = useCallback(
+    async (skin: CharacterSkinKey) => {
+      const skinDef = CHARACTER_SKINS[skin];
+      if (!skinDef || unlockedCharacters[skin] || totalGold < skinDef.cost) return;
+
+      const nextGold = totalGold - skinDef.cost;
+      const nextUnlocked = { ...unlockedCharacters, [skin]: true };
+
+      setTotalGold(nextGold);
+      setUnlockedCharacters(nextUnlocked);
+      setSelectedSkin(skin);
+
+      await Promise.all([
+        saveGold(nextGold),
+        saveUnlockedCharacters(nextUnlocked),
+        saveSelectedCharacter(skin),
+      ]);
+    },
+    [totalGold, unlockedCharacters],
+  );
+
+  const onGameOver = useCallback(async (finalScore: number, runEarnedGold: number) => {
     setScore(finalScore);
+    setEarnedGold(runEarnedGold);
     setStatus('gameOver');
+
     const best = await saveHighScoreIfNeeded(finalScore);
     setHighScore(best);
-  }, []);
+
+    const nextGold = totalGold + runEarnedGold;
+    setTotalGold(nextGold);
+    await saveGold(nextGold);
+  }, [totalGold]);
 
   const onBackToMenu = useCallback(() => setStatus('menu'), []);
 
@@ -67,9 +117,12 @@ export default function App() {
         {status === 'menu' ? (
           <MenuScreen
             highScore={highScore}
+            totalGold={totalGold}
             onStart={onStart}
             selectedSkin={selectedSkin}
+            unlockedCharacters={unlockedCharacters}
             onSelectSkin={onSelectSkin}
+            onUnlockSkin={onUnlockSkin}
           />
         ) : null}
         {status === 'playing' ? (
@@ -79,6 +132,7 @@ export default function App() {
           <GameOverScreen
             score={score}
             highScore={highScore}
+            earnedGold={earnedGold}
             onRetry={onStart}
             onBackToMenu={onBackToMenu}
           />
