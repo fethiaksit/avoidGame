@@ -7,7 +7,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { GameOverScreen } from './src/screens/GameOverScreen';
 import { GameScreen } from './src/screens/GameScreen';
 import { MenuScreen } from './src/screens/MenuScreen';
+import { DEFAULT_CHARACTER_SKIN, CharacterSkinKey } from './src/game/characters';
 import { GAME_COLORS } from './src/game/constants';
+import { getCharacterSkin, setCharacterSkin } from './src/storage/characterSkin';
 import { getHighScore, saveHighScoreIfNeeded } from './src/storage/highScore';
 import { GameStatus } from './src/types/game';
 
@@ -16,15 +18,17 @@ export default function App() {
   const [isReady, setIsReady] = useState(false);
   const [score, setScore] = useState(0);
   const [highScore, setHighScore] = useState(0);
+  const [selectedSkin, setSelectedSkin] = useState<CharacterSkinKey>(DEFAULT_CHARACTER_SKIN);
 
   useEffect(() => {
-    const loadHighScore = async () => {
-      const best = await getHighScore();
+    const loadAppData = async () => {
+      const [best, savedSkin] = await Promise.all([getHighScore(), getCharacterSkin()]);
       setHighScore(best);
+      setSelectedSkin(savedSkin);
       setIsReady(true);
     };
 
-    loadHighScore();
+    loadAppData();
   }, []);
 
   const onStart = useCallback(() => {
@@ -32,6 +36,10 @@ export default function App() {
     setStatus('playing');
   }, []);
 
+  const onSelectSkin = useCallback(async (skin: CharacterSkinKey) => {
+    setSelectedSkin(skin);
+    await setCharacterSkin(skin);
+  }, []);
   const onGameOver = useCallback(async (finalScore: number) => {
     setScore(finalScore);
     setStatus('gameOver');
@@ -56,8 +64,17 @@ export default function App() {
     <GestureHandlerRootView style={styles.root}>
       <SafeAreaView style={styles.appContainer}>
         <StatusBar style="light" />
-        {status === 'menu' ? <MenuScreen highScore={highScore} onStart={onStart} /> : null}
-        {status === 'playing' ? <GameScreen onGameOver={onGameOver} /> : null}
+        {status === 'menu' ? (
+          <MenuScreen
+            highScore={highScore}
+            onStart={onStart}
+            selectedSkin={selectedSkin}
+            onSelectSkin={onSelectSkin}
+          />
+        ) : null}
+        {status === 'playing' ? (
+          <GameScreen onGameOver={onGameOver} selectedSkin={selectedSkin} />
+        ) : null}
         {status === 'gameOver' ? (
           <GameOverScreen
             score={score}

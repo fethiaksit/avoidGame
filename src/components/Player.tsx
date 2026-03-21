@@ -1,18 +1,20 @@
 import React from 'react';
-import { Rect } from '@shopify/react-native-skia';
+import { Image as SkiaImage, Rect, useImage } from '@shopify/react-native-skia';
 
 import { GAME_COLORS } from '../game/constants';
+import { CharacterSkin } from '../game/characters';
 
 interface PlayerProps {
   x: number;
   y: number;
   size: number;
-  color: string;
+  skin: CharacterSkin;
   hasShield?: boolean;
 }
 
-export const Player = ({ x, y, size, color, hasShield = false }: PlayerProps) => {
+export const Player = ({ x, y, size, skin, hasShield = false }: PlayerProps) => {
   const shieldPadding = 6;
+  const image = useImage((skin.image ?? null) as never);
 
   return (
     <>
@@ -26,7 +28,11 @@ export const Player = ({ x, y, size, color, hasShield = false }: PlayerProps) =>
           opacity={0.25}
         />
       )}
-      <Rect x={x} y={y} width={size} height={size} color={color} />
+      {image ? (
+        <SkiaImage image={image} x={x} y={y} width={size} height={size} fit="cover" />
+      ) : (
+        <Rect x={x} y={y} width={size} height={size} color={skin.placeholderColor} />
+      )}
     </>
   );
 };
