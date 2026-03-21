@@ -95,19 +95,30 @@ export const MenuScreen = ({
   const [isStoreOpen, setIsStoreOpen] = useState(false);
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>avoid</Text>
-      <Text style={styles.subtitle}>Endless Dodge Survival</Text>
-      <Text style={styles.highScore}>High Score: {highScore}</Text>
-      {!isStoreOpen && <GoldBadge amount={totalGold} />}
-
+    <ScrollView contentContainerStyle={[styles.container, !isStoreOpen && styles.menuCentered]}>
       {!isStoreOpen ? (
-        <Pressable style={styles.storeButton} onPress={() => setIsStoreOpen(true)}>
-          <Ionicons name="storefront" size={20} color={GAME_COLORS.text} />
-          <Text style={styles.storeButtonText}>Store</Text>
-        </Pressable>
+        <>
+          <Text style={styles.title}>avoid</Text>
+          <Text style={styles.subtitle}>Endless Dodge Survival</Text>
+          <Text style={styles.highScore}>High Score: {highScore}</Text>
+          <GoldBadge amount={totalGold} />
+
+          <Pressable style={styles.storeButton} onPress={() => setIsStoreOpen(true)}>
+            <Ionicons name="storefront" size={20} color={GAME_COLORS.text} />
+            <Text style={styles.storeButtonText}>Store</Text>
+          </Pressable>
+
+          <Pressable style={styles.button} onPress={onStart}>
+            <Text style={styles.buttonText}>Start</Text>
+          </Pressable>
+        </>
       ) : (
         <View style={styles.shopSection}>
+          <Pressable style={styles.storeBackButton} onPress={() => setIsStoreOpen(false)}>
+            <Ionicons name="arrow-back" size={18} color={GAME_COLORS.text} />
+            <Text style={styles.storeBackButtonText}>Back</Text>
+          </Pressable>
+
           <View style={styles.shopHeaderRow}>
             <View style={styles.shopHeader}>
               <Ionicons name="storefront" size={20} color={GAME_COLORS.text} />
@@ -135,26 +146,21 @@ export const MenuScreen = ({
               />
             ))}
           </View>
-
-          <Pressable style={styles.closeButton} onPress={() => setIsStoreOpen(false)}>
-            <Ionicons name="arrow-back" size={18} color={GAME_COLORS.text} />
-            <Text style={styles.closeButtonText}>Back</Text>
-          </Pressable>
         </View>
       )}
-
-      <Pressable style={styles.button} onPress={onStart}>
-        <Text style={styles.buttonText}>Başlat</Text>
-      </Pressable>
     </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
+    flexGrow: 1,
     padding: 24,
     alignItems: 'center',
     backgroundColor: GAME_COLORS.background,
+  },
+  menuCentered: {
+    justifyContent: 'center',
   },
   title: {
     color: GAME_COLORS.text,
@@ -209,6 +215,22 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 26,
     backgroundColor: '#0f172a',
+  },
+  storeBackButton: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#374151',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginBottom: 12,
+  },
+  storeBackButtonText: {
+    color: GAME_COLORS.text,
+    fontSize: 14,
+    fontWeight: '700',
   },
   shopHeader: {
     flexDirection: 'row',
@@ -340,22 +362,6 @@ const styles = StyleSheet.create({
   storeButtonText: {
     color: GAME_COLORS.text,
     fontSize: 18,
-    fontWeight: '700',
-  },
-  closeButton: {
-    marginTop: 14,
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#374151',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  closeButtonText: {
-    color: GAME_COLORS.text,
-    fontSize: 14,
     fontWeight: '700',
   },
   button: {

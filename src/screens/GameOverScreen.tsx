@@ -25,8 +25,8 @@ export const GameOverScreen = ({
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Oyun Bitti</Text>
-      <Text style={styles.score}>Skor: {score}</Text>
+      <Text style={styles.title}>Game Over</Text>
+      <Text style={styles.score}>Score: {score}</Text>
       <Text style={styles.highScore}>High Score: {highScore}</Text>
 
       <View style={styles.goldRow}>
@@ -38,14 +38,14 @@ export const GameOverScreen = ({
         <Text style={styles.totalGold}>Total Gold: {totalGold}</Text>
       </View>
 
-      {isNewRecord ? <Text style={styles.recordBadge}>Yeni Rekor!</Text> : null}
+      {isNewRecord ? <Text style={styles.recordBadge}>New Record!</Text> : null}
 
       <Pressable style={styles.primaryButton} onPress={onRetry}>
-        <Text style={styles.buttonText}>Tekrar Oyna</Text>
+        <Text style={styles.buttonText}>Play Again</Text>
       </Pressable>
 
       <Pressable style={styles.secondaryButton} onPress={onBackToMenu}>
-        <Text style={styles.buttonText}>Ana Menü</Text>
+        <Text style={styles.buttonText}>Main Menu</Text>
       </Pressable>
     </View>
   );
