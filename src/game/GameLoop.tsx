@@ -10,6 +10,7 @@ import { Canvas } from '@shopify/react-native-skia';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { runOnJS } from 'react-native-reanimated';
 
+import { CHARACTER_SKINS, CharacterSkinKey } from './characters';
 import { GAME_COLORS, GAME_CONFIG } from './constants';
 import { getCollectedPowerUpIndexes, getFirstCollidingObstacleIndex } from './collision';
 import {
@@ -28,6 +29,7 @@ import { GameSnapshot, ObstacleEntity, PlayerEntity, PowerUpEntity } from '../ty
 
 interface GameLoopProps {
   onGameOver: (score: number) => void;
+  selectedSkin: CharacterSkinKey;
 }
 
 interface GameRuntime {
@@ -40,7 +42,7 @@ interface GameRuntime {
   shields: number;
 }
 
-export const GameLoop = ({ onGameOver }: GameLoopProps) => {
+export const GameLoop = ({ onGameOver, selectedSkin }: GameLoopProps) => {
   const [playArea, setPlayArea] = useState({ width: 0, height: 0 });
   const [snapshot, setSnapshot] = useState<GameSnapshot>({
     playerX: 0,
@@ -291,7 +293,7 @@ export const GameLoop = ({ onGameOver }: GameLoopProps) => {
               x={snapshot.playerX}
               y={playerY}
               size={GAME_CONFIG.player.size}
-              color={GAME_COLORS.player}
+              skin={CHARACTER_SKINS[selectedSkin]}
               hasShield={snapshot.shields > 0}
             />
             {snapshot.obstacles.map((obstacle) => (
