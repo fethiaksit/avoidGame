@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { LayoutChangeEvent, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, LayoutChangeEvent, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Canvas } from '@shopify/react-native-skia';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { runOnJS } from 'react-native-reanimated';
@@ -24,6 +24,8 @@ import { GameSnapshot, ObstacleEntity, PlayerEntity, PowerUpEntity } from '../ty
 interface GameLoopProps {
   onGameOver: (score: number, earnedGold: number) => void;
   selectedSkin: CharacterSkinKey;
+  totalGold: number;
+  onTapGold: () => void;
 }
 
 interface GameRuntime {
@@ -36,9 +38,9 @@ interface GameRuntime {
   shields: number;
 }
 
-const getEarnedGoldFromScore = (score: number) => Math.max(1, Math.floor(score / 10));
+const goldIconSource = require('../../assets/gold.png');
 
-export const GameLoop = ({ onGameOver, selectedSkin }: GameLoopProps) => {
+export const GameLoop = ({ onGameOver, selectedSkin, totalGold, onTapGold }: GameLoopProps) => {
   const [playArea, setPlayArea] = useState({ width: 0, height: 0 });
   const [snapshot, setSnapshot] = useState<GameSnapshot>({
     playerX: 0,
@@ -49,6 +51,7 @@ export const GameLoop = ({ onGameOver, selectedSkin }: GameLoopProps) => {
     isPaused: false,
     shields: 0,
   });
+  const [isGoldIconFailed, setIsGoldIconFailed] = useState(false);
 
   const runtimeRef = useRef<GameRuntime | null>(null);
   const rafIdRef = useRef<number | null>(null);
@@ -87,7 +90,7 @@ export const GameLoop = ({ onGameOver, selectedSkin }: GameLoopProps) => {
   const gameOver = useCallback(() => {
     stopLoop();
     const finalScore = runtimeRef.current ? getScoreFromElapsed(runtimeRef.current.elapsed) : 0;
-    const earnedGold = getEarnedGoldFromScore(finalScore);
+    const earnedGold = 0;
     onGameOver(finalScore, earnedGold);
   }, [onGameOver, stopLoop]);
 
@@ -278,6 +281,18 @@ export const GameLoop = ({ onGameOver, selectedSkin }: GameLoopProps) => {
         <Text style={styles.headerText}>Skor: {snapshot.score}</Text>
         <Text style={styles.headerText}>Seviye: {snapshot.level + 1}</Text>
         <Text style={styles.headerText}>Kalkan: {snapshot.shields}</Text>
+        <Pressable onPress={onTapGold} style={styles.goldButton}>
+          {isGoldIconFailed ? (
+            <Text style={styles.goldFallback}>G</Text>
+          ) : (
+            <Image
+              source={goldIconSource}
+              style={styles.goldIcon}
+              onError={() => setIsGoldIconFailed(true)}
+            />
+          )}
+          <Text style={styles.goldCount}>{totalGold}</Text>
+        </Pressable>
         <Pressable onPress={togglePause} style={styles.pauseButton}>
           <Text style={styles.pauseButtonText}>{snapshot.isPaused ? 'Devam' : 'Duraklat'}</Text>
         </Pressable>
@@ -330,7 +345,8 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
+    flexWrap: 'wrap',
     paddingHorizontal: 16,
     paddingVertical: 12,
     backgroundColor: GAME_COLORS.panel,
@@ -340,6 +356,32 @@ const styles = StyleSheet.create({
     color: GAME_COLORS.text,
     fontSize: 16,
     fontWeight: '600',
+  },
+  goldButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginLeft: 'auto',
+    backgroundColor: '#1f2937',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+  },
+  goldIcon: {
+    width: 18,
+    height: 18,
+  },
+  goldFallback: {
+    color: '#facc15',
+    fontSize: 16,
+    fontWeight: '800',
+    width: 18,
+    textAlign: 'center',
+  },
+  goldCount: {
+    color: '#facc15',
+    fontSize: 14,
+    fontWeight: '700',
   },
   pauseButton: {
     backgroundColor: '#1f2937',
