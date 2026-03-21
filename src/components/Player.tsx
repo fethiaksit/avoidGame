@@ -28,11 +28,18 @@ export const Player = ({ x, y, size, skin, hasShield = false }: PlayerProps) => 
           opacity={0.25}
         />
       )}
-      {image ? (
-        <SkiaImage image={image} x={x} y={y} width={size} height={size} fit="cover" />
-      ) : (
-        <Rect x={x} y={y} width={size} height={size} color={skin.placeholderColor} />
-      )}
+      const image = useImage(skin.image);
+
+      return image ? (
+      <SkiaImage
+        image={image}
+        x={x}
+        y={y}
+        width={size}
+        height={size}
+        fit="cover"
+      />
+      ) : null;
     </>
   );
 };
