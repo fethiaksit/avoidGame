@@ -8,12 +8,19 @@ import { GAME_COLORS } from '../game/constants';
 interface GameScreenProps {
   onGameOver: (score: number, earnedGold: number) => void;
   selectedSkin: CharacterSkinKey;
+  totalGold: number;
+  onTapGold: () => void;
 }
 
-export const GameScreen = ({ onGameOver, selectedSkin }: GameScreenProps) => {
+export const GameScreen = ({ onGameOver, selectedSkin, totalGold, onTapGold }: GameScreenProps) => {
   return (
     <SafeAreaView style={styles.container}>
-      <GameLoop onGameOver={onGameOver} selectedSkin={selectedSkin} />
+      <GameLoop
+        onGameOver={onGameOver}
+        selectedSkin={selectedSkin}
+        totalGold={totalGold}
+        onTapGold={onTapGold}
+      />
     </SafeAreaView>
   );
 };
