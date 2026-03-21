@@ -64,6 +64,13 @@ export const updateObstacles = (
   return obstacles
     .map((obstacle) => {
       const nextAge = obstacle.age + dt;
+      if (obstacle.type === 'wall') {
+        return {
+          ...obstacle,
+          age: nextAge,
+        };
+      }
+
       const nextY = obstacle.y + obstacle.speed * dt;
 
       if (obstacle.type !== 'zigzag') {
