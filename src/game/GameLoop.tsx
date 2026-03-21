@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   LayoutChangeEvent,
   Pressable,
@@ -11,12 +11,20 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { runOnJS } from 'react-native-reanimated';
 
 import { GAME_COLORS, GAME_CONFIG } from './constants';
-import { hasCollision } from './collision';
-import { createObstacle, getSpawnInterval, updateObstacles } from './obstacleManager';
+import { getCollectedPowerUpIndexes, getFirstCollidingObstacleIndex } from './collision';
+import {
+  createObstacle,
+  createShieldPowerUp,
+  getSpawnInterval,
+  shouldSpawnShieldPowerUp,
+  updateObstacles,
+  updatePowerUps,
+} from './obstacleManager';
 import { getDifficultyLevel, getScoreFromElapsed } from './scoreManager';
 import { Obstacle } from '../components/Obstacle';
 import { Player } from '../components/Player';
-import { GameSnapshot, ObstacleEntity, PlayerEntity } from '../types/game';
+import { PowerUp } from '../components/PowerUp';
+import { GameSnapshot, ObstacleEntity, PlayerEntity, PowerUpEntity } from '../types/game';
 
 interface GameLoopProps {
   onGameOver: (score: number) => void;
@@ -25,9 +33,11 @@ interface GameLoopProps {
 interface GameRuntime {
   player: PlayerEntity;
   obstacles: ObstacleEntity[];
+  powerUps: PowerUpEntity[];
   elapsed: number;
   level: number;
   spawnTimer: number;
+  shields: number;
 }
 
 export const GameLoop = ({ onGameOver }: GameLoopProps) => {
@@ -35,9 +45,11 @@ export const GameLoop = ({ onGameOver }: GameLoopProps) => {
   const [snapshot, setSnapshot] = useState<GameSnapshot>({
     playerX: 0,
     obstacles: [],
+    powerUps: [],
     score: 0,
     level: 0,
     isPaused: false,
+    shields: 0,
   });
 
   const runtimeRef = useRef<GameRuntime | null>(null);
@@ -45,7 +57,10 @@ export const GameLoop = ({ onGameOver }: GameLoopProps) => {
   const lastFrameTimeRef = useRef<number | null>(null);
   const isRunningRef = useRef(false);
 
-  const playerY = playArea.height - GAME_CONFIG.player.bottomOffset - GAME_CONFIG.player.size;
+  const playerY = useMemo(
+    () => playArea.height - GAME_CONFIG.player.bottomOffset - GAME_CONFIG.player.size,
+    [playArea.height],
+  );
 
   const syncSnapshot = useCallback(() => {
     const runtime = runtimeRef.current;
@@ -54,9 +69,11 @@ export const GameLoop = ({ onGameOver }: GameLoopProps) => {
     setSnapshot({
       playerX: runtime.player.x,
       obstacles: runtime.obstacles,
+      powerUps: runtime.powerUps,
       score: getScoreFromElapsed(runtime.elapsed),
       level: runtime.level,
       isPaused: !isRunningRef.current,
+      shields: runtime.shields,
     });
   }, []);
 
@@ -90,22 +107,48 @@ export const GameLoop = ({ onGameOver }: GameLoopProps) => {
         GAME_CONFIG.difficulty.maxLevel,
       );
 
+      const maxX = playArea.width - runtime.player.size;
+      const clampedTargetX = Math.max(0, Math.min(runtime.player.targetX, maxX));
+      const smoothingStep = 1 - Math.exp(-GAME_CONFIG.player.smoothing * clampedDt);
+      runtime.player.x += (clampedTargetX - runtime.player.x) * smoothingStep;
+      runtime.player.x = Math.max(0, Math.min(runtime.player.x, maxX));
+
       runtime.spawnTimer += clampedDt;
-      const spawnInterval = getSpawnInterval(runtime.level);
-      const shouldSpawn =
+      const spawnInterval = getSpawnInterval(runtime.elapsed);
+      const shouldSpawnEnemy =
         runtime.spawnTimer >= spawnInterval &&
         runtime.obstacles.length < GAME_CONFIG.spawn.maxOnScreen;
 
-      if (shouldSpawn) {
+      if (shouldSpawnEnemy) {
         runtime.spawnTimer = 0;
-        runtime.obstacles.push(createObstacle(playArea.width, runtime.level));
+        runtime.obstacles.push(createObstacle(playArea.width, runtime.level, runtime.elapsed));
       }
 
-      runtime.obstacles = updateObstacles(runtime.obstacles, clampedDt, playArea.height);
+      const shouldSpawnShield =
+        runtime.powerUps.length < GAME_CONFIG.powerUp.maxOnScreen && shouldSpawnShieldPowerUp(clampedDt);
 
-      if (hasCollision(runtime.player, runtime.obstacles)) {
-        gameOver();
-        return;
+      if (shouldSpawnShield) {
+        runtime.powerUps.push(createShieldPowerUp(playArea.width));
+      }
+
+      runtime.obstacles = updateObstacles(runtime.obstacles, clampedDt, playArea.width, playArea.height);
+      runtime.powerUps = updatePowerUps(runtime.powerUps, clampedDt, playArea.height);
+
+      const collectedPowerUpIndexes = getCollectedPowerUpIndexes(runtime.player, runtime.powerUps);
+      if (collectedPowerUpIndexes.length > 0) {
+        runtime.shields += collectedPowerUpIndexes.length;
+        runtime.powerUps = runtime.powerUps.filter((_, index) => !collectedPowerUpIndexes.includes(index));
+      }
+
+      const collisionIndex = getFirstCollidingObstacleIndex(runtime.player, runtime.obstacles);
+      if (collisionIndex !== -1) {
+        if (runtime.shields > 0) {
+          runtime.shields -= 1;
+          runtime.obstacles.splice(collisionIndex, 1);
+        } else {
+          gameOver();
+          return;
+        }
       }
 
       syncSnapshot();
@@ -144,18 +187,23 @@ export const GameLoop = ({ onGameOver }: GameLoopProps) => {
         y: playerY,
         size: GAME_CONFIG.player.size,
         speed: GAME_CONFIG.player.speed,
+        targetX: spawnX,
       },
       obstacles: [],
+      powerUps: [],
       elapsed: 0,
       level: 0,
       spawnTimer: 0,
+      shields: 0,
     };
     setSnapshot({
       playerX: spawnX,
       obstacles: [],
+      powerUps: [],
       score: 0,
       level: 0,
       isPaused: false,
+      shields: 0,
     });
     startLoop();
   }, [playArea.width, playerY, startLoop]);
@@ -167,7 +215,11 @@ export const GameLoop = ({ onGameOver }: GameLoopProps) => {
 
       const halfSize = runtime.player.size / 2;
       const maxX = playArea.width - runtime.player.size;
-      runtime.player.x = Math.max(0, Math.min(touchX - halfSize, maxX));
+      const targetX = Math.max(0, Math.min(touchX - halfSize, maxX));
+
+      runtime.player.targetX = targetX;
+      runtime.player.x += (targetX - runtime.player.x) * 0.45;
+      runtime.player.x = Math.max(0, Math.min(runtime.player.x, maxX));
       syncSnapshot();
     },
     [playArea.width, syncSnapshot],
@@ -178,6 +230,9 @@ export const GameLoop = ({ onGameOver }: GameLoopProps) => {
       runOnJS(movePlayerToTouch)(event.x);
     })
     .onUpdate((event) => {
+      runOnJS(movePlayerToTouch)(event.x);
+    })
+    .onStart((event) => {
       runOnJS(movePlayerToTouch)(event.x);
     });
 
@@ -223,6 +278,7 @@ export const GameLoop = ({ onGameOver }: GameLoopProps) => {
       <View style={styles.header}>
         <Text style={styles.headerText}>Skor: {snapshot.score}</Text>
         <Text style={styles.headerText}>Seviye: {snapshot.level + 1}</Text>
+        <Text style={styles.headerText}>Kalkan: {snapshot.shields}</Text>
         <Pressable onPress={togglePause} style={styles.pauseButton}>
           <Text style={styles.pauseButtonText}>{snapshot.isPaused ? 'Devam' : 'Duraklat'}</Text>
         </Pressable>
@@ -231,7 +287,13 @@ export const GameLoop = ({ onGameOver }: GameLoopProps) => {
       <GestureDetector gesture={panGesture}>
         <View style={styles.canvasContainer} onLayout={onLayout}>
           <Canvas style={styles.canvas}>
-            <Player x={snapshot.playerX} y={playerY} size={GAME_CONFIG.player.size} color={GAME_COLORS.player} />
+            <Player
+              x={snapshot.playerX}
+              y={playerY}
+              size={GAME_CONFIG.player.size}
+              color={GAME_COLORS.player}
+              hasShield={snapshot.shields > 0}
+            />
             {snapshot.obstacles.map((obstacle) => (
               <Obstacle
                 key={obstacle.id}
@@ -239,7 +301,19 @@ export const GameLoop = ({ onGameOver }: GameLoopProps) => {
                 y={obstacle.y}
                 width={obstacle.width}
                 height={obstacle.height}
-                color={GAME_COLORS.obstacle}
+                color={
+                  obstacle.type === 'zigzag' ? GAME_COLORS.zigzagObstacle : GAME_COLORS.obstacle
+                }
+              />
+            ))}
+            {snapshot.powerUps.map((powerUp) => (
+              <PowerUp
+                key={powerUp.id}
+                x={powerUp.x}
+                y={powerUp.y}
+                width={powerUp.width}
+                height={powerUp.height}
+                color={GAME_COLORS.shieldPowerUp}
               />
             ))}
           </Canvas>
@@ -260,6 +334,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     backgroundColor: GAME_COLORS.panel,
+    gap: 10,
   },
   headerText: {
     color: GAME_COLORS.text,
