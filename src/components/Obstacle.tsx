@@ -3,8 +3,7 @@ import { Image as SkiaImage, Rect, useImage } from '@shopify/react-native-skia';
 
 import { EnemyType } from '../types/game';
 
-// These stay undefined unless corresponding files already exist in the repo.
-const MOVING_ENEMY_ASSET: number | undefined = undefined;
+const MOVING_ENEMY_ASSET = require('../../assets/enemymoving.png');
 const WALL_ASSET: number | undefined = undefined;
 
 interface ObstacleProps {
