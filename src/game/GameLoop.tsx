@@ -59,7 +59,7 @@ export const GameLoop = ({ onGameOver, selectedSkin, totalGold, onTapGold }: Gam
   const isRunningRef = useRef(false);
 
   const playerY = useMemo(
-    () => playArea.height - GAME_CONFIG.player.bottomOffset - GAME_CONFIG.player.size,
+    () => Math.max(0, playArea.height - GAME_CONFIG.player.bottomOffset - GAME_CONFIG.player.size),
     [playArea.height],
   );
 
@@ -181,12 +181,16 @@ export const GameLoop = ({ onGameOver, selectedSkin, totalGold, onTapGold }: Gam
     rafIdRef.current = requestAnimationFrame(loop);
   }, [loop]);
 
-  const initRuntime = useCallback(() => {
-    const spawnX = Math.max(0, playArea.width / 2 - GAME_CONFIG.player.size / 2);
+  const initRuntime = useCallback((width: number, height: number) => {
+    const spawnX = Math.max(0, width / 2 - GAME_CONFIG.player.size / 2);
+    const spawnY = Math.max(
+      0,
+      height - GAME_CONFIG.player.bottomOffset - GAME_CONFIG.player.size,
+    );
     runtimeRef.current = {
       player: {
         x: spawnX,
-        y: playerY,
+        y: spawnY,
         size: GAME_CONFIG.player.size,
         speed: GAME_CONFIG.player.speed,
         targetX: spawnX,
@@ -208,7 +212,7 @@ export const GameLoop = ({ onGameOver, selectedSkin, totalGold, onTapGold }: Gam
       shields: 0,
     });
     startLoop();
-  }, [playArea.width, playerY, startLoop]);
+  }, [startLoop]);
 
   const movePlayerToTouch = useCallback(
     (touchX: number) => {
@@ -242,10 +246,9 @@ export const GameLoop = ({ onGameOver, selectedSkin, totalGold, onTapGold }: Gam
     (event: LayoutChangeEvent) => {
       const { width, height } = event.nativeEvent.layout;
       if (width === playArea.width && height === playArea.height) return;
-      stopLoop();
       setPlayArea({ width, height });
     },
-    [playArea.height, playArea.width, stopLoop],
+    [playArea.height, playArea.width],
   );
 
   const togglePause = useCallback(() => {
@@ -256,18 +259,33 @@ export const GameLoop = ({ onGameOver, selectedSkin, totalGold, onTapGold }: Gam
     }
 
     if (!runtimeRef.current) {
-      initRuntime();
+      initRuntime(playArea.width, playArea.height);
       return;
     }
 
     startLoop();
-  }, [initRuntime, startLoop, stopLoop]);
+  }, [initRuntime, playArea.height, playArea.width, startLoop, stopLoop]);
 
   useEffect(() => {
-    if (playArea.width > 0 && playArea.height > 0) {
-      initRuntime();
+    if (playArea.width <= 0 || playArea.height <= 0) {
+      return;
     }
-  }, [initRuntime, playArea.height, playArea.width]);
+
+    if (!runtimeRef.current) {
+      initRuntime(playArea.width, playArea.height);
+      return;
+    }
+
+    const runtime = runtimeRef.current;
+    const maxX = Math.max(0, playArea.width - runtime.player.size);
+    runtime.player.x = Math.max(0, Math.min(runtime.player.x, maxX));
+    runtime.player.targetX = Math.max(0, Math.min(runtime.player.targetX, maxX));
+    runtime.player.y = Math.max(
+      0,
+      playArea.height - GAME_CONFIG.player.bottomOffset - runtime.player.size,
+    );
+    syncSnapshot();
+  }, [initRuntime, playArea.height, playArea.width, syncSnapshot]);
 
   useEffect(() => {
     return () => {
