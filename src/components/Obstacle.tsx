@@ -17,7 +17,7 @@ interface ObstacleProps {
 }
 
 export const Obstacle = ({ x, y, width, height, color, type }: ObstacleProps) => {
-  const source = type === 'zigzag' ? MOVING_ENEMY_ASSET : WALL_ASSET;
+  const source = type === 'wall' ? WALL_ASSET : MOVING_ENEMY_ASSET;
   const image = useImage((source ?? null) as never);
 
   if (image) {

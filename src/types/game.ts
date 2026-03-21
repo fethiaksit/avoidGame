@@ -2,7 +2,7 @@ import { CharacterSkinKey } from '../game/characters';
 
 export type GameStatus = 'menu' | 'playing' | 'gameOver';
 
-export type EnemyType = 'normal' | 'zigzag';
+export type EnemyType = 'normal' | 'zigzag' | 'wall';
 
 export type CharacterUnlockMap = Record<CharacterSkinKey, boolean>;
 
