@@ -18,8 +18,9 @@ interface ObstacleProps {
 export const Obstacle = ({ x, y, width, height, color, type }: ObstacleProps) => {
   const movingEnemyImage = useImage(MOVING_ENEMY_ASSET as never);
   const wallImage = useImage(WALL_ASSET as never);
-  const image =
-    type === 'wall' ? wallImage ?? movingEnemyImage : movingEnemyImage ?? wallImage;
+  const isStaticWallType = type === 'wall' || type === 'normal';
+  const isMovingType = type === 'zigzag';
+  const image = isStaticWallType ? wallImage : isMovingType ? movingEnemyImage : wallImage;
 
   if (image) {
     return <SkiaImage image={image} x={x} y={y} width={width} height={height} fit="cover" />;
