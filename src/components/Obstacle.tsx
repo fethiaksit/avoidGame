@@ -4,7 +4,7 @@ import { Image as SkiaImage, Rect, useImage } from '@shopify/react-native-skia';
 import { EnemyType } from '../types/game';
 
 const MOVING_ENEMY_ASSET = require('../../assets/enemymoving.png');
-const WALL_ASSET: number | undefined = undefined;
+const WALL_ASSET = require('../../assets/wall.png');
 
 interface ObstacleProps {
   x: number;
@@ -16,8 +16,10 @@ interface ObstacleProps {
 }
 
 export const Obstacle = ({ x, y, width, height, color, type }: ObstacleProps) => {
-  const source = type === 'wall' ? WALL_ASSET : MOVING_ENEMY_ASSET;
-  const image = useImage((source ?? null) as never);
+  const movingEnemyImage = useImage(MOVING_ENEMY_ASSET as never);
+  const wallImage = useImage(WALL_ASSET as never);
+  const image =
+    type === 'wall' ? wallImage ?? movingEnemyImage : movingEnemyImage ?? wallImage;
 
   if (image) {
     return <SkiaImage image={image} x={x} y={y} width={width} height={height} fit="cover" />;
