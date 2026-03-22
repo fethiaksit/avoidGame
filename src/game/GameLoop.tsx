@@ -44,6 +44,8 @@ interface GameRuntime {
   shields: number;
 }
 
+const POWER_UP_RENDER_SCALE = 2;
+
 export const GameLoop = ({ onGameOver, selectedSkin, totalGold }: GameLoopProps) => {
   const [playArea, setPlayArea] = useState({ width: 0, height: 0 });
   const [snapshot, setSnapshot] = useState<GameSnapshot>({
@@ -208,6 +210,7 @@ export const GameLoop = ({ onGameOver, selectedSkin, totalGold }: GameLoopProps)
       0,
       height - GAME_CONFIG.player.bottomOffset - GAME_CONFIG.player.size,
     );
+
     runtimeRef.current = {
       player: {
         x: spawnX,
@@ -225,6 +228,7 @@ export const GameLoop = ({ onGameOver, selectedSkin, totalGold }: GameLoopProps)
       spawnTimer: 0,
       shields: 0,
     };
+
     setSnapshot({
       playerX: spawnX,
       obstacles: [],
@@ -236,6 +240,7 @@ export const GameLoop = ({ onGameOver, selectedSkin, totalGold }: GameLoopProps)
       shields: 0,
       earnedGold: 0,
     });
+
     startLoop();
   }, [startLoop]);
 
@@ -324,11 +329,13 @@ export const GameLoop = ({ onGameOver, selectedSkin, totalGold }: GameLoopProps)
         <Text style={styles.headerText}>Score: {snapshot.score}</Text>
         <Text style={styles.headerText}>Level: {snapshot.level + 1}</Text>
         <Text style={styles.headerText}>Shields: {snapshot.shields}</Text>
+
         <View style={styles.goldButton}>
           <MaterialCommunityIcons name="gold" size={14} color="#facc15" />
           <Text style={styles.goldCount}>{totalGold}</Text>
           <Text style={styles.goldEarned}>+{snapshot.earnedGold}</Text>
         </View>
+
         <Pressable onPress={togglePause} style={styles.pauseButton}>
           <Ionicons
             name={snapshot.isPaused ? 'play' : 'pause'}
@@ -348,6 +355,7 @@ export const GameLoop = ({ onGameOver, selectedSkin, totalGold }: GameLoopProps)
               skin={CHARACTER_SKINS[selectedSkin]}
               hasShield={snapshot.shields > 0}
             />
+
             {snapshot.obstacles.map((obstacle) => (
               <Obstacle
                 key={obstacle.id}
@@ -361,18 +369,26 @@ export const GameLoop = ({ onGameOver, selectedSkin, totalGold }: GameLoopProps)
                 }
               />
             ))}
+
             {snapshot.powerUps.map((powerUp) => (
               <PowerUp
                 key={powerUp.id}
                 x={powerUp.x}
                 y={powerUp.y}
-                width={powerUp.width}
-                height={powerUp.height}
+                width={powerUp.width * POWER_UP_RENDER_SCALE}
+                height={powerUp.height * POWER_UP_RENDER_SCALE}
                 color={GAME_COLORS.shieldPowerUp}
               />
             ))}
+
             {snapshot.goldItems.map((gold) => (
-              <Gold key={gold.id} x={gold.x} y={gold.y} size={gold.size} color={GAME_COLORS.gold} />
+              <Gold
+                key={gold.id}
+                x={gold.x}
+                y={gold.y}
+                size={gold.size}
+                color={GAME_COLORS.gold}
+              />
             ))}
           </Canvas>
         </View>

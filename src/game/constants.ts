@@ -15,7 +15,7 @@ export const GAME_COLORS = {
 export const GAME_CONFIG = {
   player: {
     size: 64,
-    bottomOffset: 48,
+    bottomOffset: 80,
     speed: 420,
     smoothing: 20,
   },
