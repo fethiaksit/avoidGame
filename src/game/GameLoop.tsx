@@ -121,7 +121,14 @@ export const GameLoop = ({ onGameOver, selectedSkin, totalGold }: GameLoopProps)
       const maxX = playArea.width - runtime.player.size;
       const clampedTargetX = Math.max(0, Math.min(runtime.player.targetX, maxX));
       const smoothingStep = 1 - Math.exp(-GAME_CONFIG.player.smoothing * clampedDt);
-      runtime.player.x += (clampedTargetX - runtime.player.x) * smoothingStep;
+      const interpolatedDelta = (clampedTargetX - runtime.player.x) * smoothingStep;
+      const maxMovementPerFrame = runtime.player.speed * clampedDt;
+      const clampedDelta = Math.max(
+        -maxMovementPerFrame,
+        Math.min(interpolatedDelta, maxMovementPerFrame),
+      );
+
+      runtime.player.x += clampedDelta;
       runtime.player.x = Math.max(0, Math.min(runtime.player.x, maxX));
 
       runtime.spawnTimer += clampedDt;
@@ -244,7 +251,7 @@ export const GameLoop = ({ onGameOver, selectedSkin, totalGold }: GameLoopProps)
     startLoop();
   }, [startLoop]);
 
-  const movePlayerToTouch = useCallback(
+  const updatePlayerTargetFromTouch = useCallback(
     (touchX: number) => {
       const runtime = runtimeRef.current;
       if (!runtime || playArea.width <= 0) return;
@@ -252,24 +259,16 @@ export const GameLoop = ({ onGameOver, selectedSkin, totalGold }: GameLoopProps)
       const halfSize = runtime.player.size / 2;
       const maxX = playArea.width - runtime.player.size;
       const targetX = Math.max(0, Math.min(touchX - halfSize, maxX));
-
       runtime.player.targetX = targetX;
-      runtime.player.x += (targetX - runtime.player.x) * 0.45;
-      runtime.player.x = Math.max(0, Math.min(runtime.player.x, maxX));
-      syncSnapshot();
     },
-    [playArea.width, syncSnapshot],
+    [playArea.width],
   );
 
   const panGesture = Gesture.Pan()
-    .onBegin((event) => {
-      runOnJS(movePlayerToTouch)(event.x);
-    })
+    .minDistance(10)
     .onUpdate((event) => {
-      runOnJS(movePlayerToTouch)(event.x);
-    })
-    .onStart((event) => {
-      runOnJS(movePlayerToTouch)(event.x);
+      if (Math.abs(event.translationX) < 4) return;
+      runOnJS(updatePlayerTargetFromTouch)(event.x);
     });
 
   const onLayout = useCallback(
