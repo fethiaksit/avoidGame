@@ -33,7 +33,7 @@ export const createObstacle = (
     GAME_CONFIG.spawn.lanePadding +
     Math.max(0, randomBetween(0, Math.max(0, paddedArea)));
 
-  const type = Math.random() < getZigzagSpawnChance(elapsed) ? 'zigzag' : 'normal';
+  const type = Math.random() < getZigzagSpawnChance(elapsed) ? 'zigzag' : 'wall';
 
   return {
     id: obstacleId++,
@@ -65,13 +65,6 @@ export const updateObstacles = (
   return obstacles
     .map((obstacle) => {
       const nextAge = obstacle.age + dt;
-      if (obstacle.type === 'wall') {
-        return {
-          ...obstacle,
-          age: nextAge,
-        };
-      }
-
       const nextY = obstacle.y + obstacle.speed * dt;
 
       if (obstacle.type !== 'zigzag') {
