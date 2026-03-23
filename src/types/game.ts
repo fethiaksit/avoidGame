@@ -18,6 +18,8 @@ export interface PlayerEntity {
   speed: number;
   targetX: number;
   obstacleCollisionScale?: number;
+  colliderInsetX: number;
+  colliderInsetY: number;
 }
 
 export interface ObstacleEntity {
@@ -32,6 +34,8 @@ export interface ObstacleEntity {
   baseX?: number;
   zigzagAmplitude?: number;
   zigzagFrequency?: number;
+  colliderInsetX: number;
+  colliderInsetY: number;
 }
 
 export interface PowerUpEntity {

@@ -1,5 +1,6 @@
-import React from 'react';
-import { SafeAreaView, StyleSheet } from 'react-native';
+import React, { useEffect } from 'react';
+import { Platform, StyleSheet, View } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 
 import { GameLoop } from '../game/GameLoop';
 import { CharacterSkinKey } from '../game/characters';
@@ -30,8 +31,55 @@ export const GameScreen = ({
   onCrash,
   onButtonClick,
 }: GameScreenProps) => {
+  useEffect(() => {
+    if (Platform.OS !== 'android') {
+      return;
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let navigationBar: any = null;
+    try {
+      navigationBar = require('expo-navigation-bar');
+    } catch {
+      return;
+    }
+
+    let isMounted = true;
+    const applyImmersiveMode = async () => {
+      // Android can still briefly reveal bars with edge gestures.
+      // We hide them again opportunistically, but gameplay must remain active either way.
+      await navigationBar.setPositionAsync('absolute');
+      await navigationBar.setBackgroundColorAsync('#00000000');
+      await navigationBar.setBehaviorAsync('overlay-swipe');
+      await navigationBar.setVisibilityAsync('hidden');
+    };
+
+    applyImmersiveMode().catch(() => {
+      // no-op on unsupported devices/ROM behaviors
+    });
+
+    const visibilitySubscription = navigationBar.addVisibilityListener(() => {
+      if (!isMounted) return;
+      navigationBar.setVisibilityAsync('hidden').catch(() => {
+        // best-effort re-hide
+      });
+    });
+
+    return () => {
+      isMounted = false;
+      visibilitySubscription.remove();
+      navigationBar.setVisibilityAsync('visible').catch(() => {
+        // no-op
+      });
+      navigationBar.setPositionAsync('relative').catch(() => {
+        // no-op
+      });
+    };
+  }, []);
+
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
+      <StatusBar style="light" hidden />
       <GameLoop
         onGameOver={onGameOver}
         onRestart={onRestart}
@@ -44,7 +92,7 @@ export const GameScreen = ({
         onCrash={onCrash}
         onButtonClick={onButtonClick}
       />
-    </SafeAreaView>
+    </View>
   );
 };
 

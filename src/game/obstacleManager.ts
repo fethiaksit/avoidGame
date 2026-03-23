@@ -22,6 +22,14 @@ const getZigzagSpawnChance = (elapsed: number) => {
   );
 };
 
+const getObstacleColliderInset = (type: ObstacleEntity['type']) => {
+  if (type === 'zigzag') {
+    return { x: 0.24, y: 0.2 };
+  }
+
+  return { x: 0.2, y: 0.12 };
+};
+
 export const createObstacle = (
   playAreaWidth: number,
   level: number,
@@ -34,6 +42,7 @@ export const createObstacle = (
     Math.max(0, randomBetween(0, Math.max(0, paddedArea)));
 
   const type = Math.random() < getZigzagSpawnChance(elapsed) ? 'zigzag' : 'wall';
+  const colliderInset = getObstacleColliderInset(type);
 
   return {
     id: obstacleId++,
@@ -53,6 +62,8 @@ export const createObstacle = (
       type === 'zigzag'
         ? randomBetween(GAME_CONFIG.obstacle.zigzagFrequencyMin, GAME_CONFIG.obstacle.zigzagFrequencyMax)
         : undefined,
+    colliderInsetX: colliderInset.x,
+    colliderInsetY: colliderInset.y,
   };
 };
 

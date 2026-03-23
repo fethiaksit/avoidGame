@@ -1,62 +1,76 @@
 import { GoldEntity, ObstacleEntity, PlayerEntity, PowerUpEntity } from '../types/game';
 
-type Rect = {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
+type ColliderBounds = {
+  left: number;
+  right: number;
+  top: number;
+  bottom: number;
 };
 
-const toInsetRect = (rect: Rect, scale: number): Rect => {
-  const normalizedScale = Math.max(0.1, Math.min(1, scale));
-  const insetX = (rect.width * (1 - normalizedScale)) / 2;
-  const insetY = (rect.height * (1 - normalizedScale)) / 2;
+const intersects = (a: ColliderBounds, b: ColliderBounds): boolean => {
+  return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+};
+
+const getPlayerBounds = (player: Pick<PlayerEntity, 'x' | 'y' | 'size' | 'colliderInsetX' | 'colliderInsetY'>): ColliderBounds => {
+  const insetX = player.size * player.colliderInsetX;
+  const insetY = player.size * player.colliderInsetY;
+  const minSize = player.size * 0.2;
+  const width = Math.max(minSize, player.size - insetX * 2);
+  const height = Math.max(minSize, player.size - insetY * 2);
 
   return {
-    x: rect.x + insetX,
-    y: rect.y + insetY,
-    width: rect.width * normalizedScale,
-    height: rect.height * normalizedScale,
+    left: player.x + insetX,
+    right: player.x + insetX + width,
+    top: player.y + insetY,
+    bottom: player.y + insetY + height,
   };
 };
 
-const intersects = (a: Rect, b: Rect): boolean => {
-  return a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
+const getEntityBounds = (
+  entity: Pick<ObstacleEntity | PowerUpEntity, 'x' | 'y' | 'width' | 'height'>,
+  colliderInsetX = 0,
+  colliderInsetY = 0,
+): ColliderBounds => {
+  const insetX = entity.width * colliderInsetX;
+  const insetY = entity.height * colliderInsetY;
+  const minWidth = entity.width * 0.2;
+  const minHeight = entity.height * 0.2;
+  const width = Math.max(minWidth, entity.width - insetX * 2);
+  const height = Math.max(minHeight, entity.height - insetY * 2);
+
+  return {
+    left: entity.x + insetX,
+    right: entity.x + insetX + width,
+    top: entity.y + insetY,
+    bottom: entity.y + insetY + height,
+  };
 };
-
-const toPlayerRect = (player: Pick<PlayerEntity, 'x' | 'y' | 'size'>): Rect => ({
-  x: player.x,
-  y: player.y,
-  width: player.size,
-  height: player.size,
-});
-
-const toEntityRect = (entity: Pick<ObstacleEntity | PowerUpEntity, 'x' | 'y' | 'width' | 'height'>): Rect => ({
-  x: entity.x,
-  y: entity.y,
-  width: entity.width,
-  height: entity.height,
-});
 
 export const isColliding = (
-  player: Pick<PlayerEntity, 'x' | 'y' | 'size'>,
+  player: Pick<PlayerEntity, 'x' | 'y' | 'size' | 'colliderInsetX' | 'colliderInsetY'>,
   entity: Pick<ObstacleEntity | PowerUpEntity, 'x' | 'y' | 'width' | 'height'>,
 ) => {
-  return intersects(toPlayerRect(player), toEntityRect(entity));
+  return intersects(getPlayerBounds(player), getEntityBounds(entity));
 };
 
-const PLAYER_OBSTACLE_HITBOX_SCALE = 0.9;
-const OBSTACLE_HITBOX_SCALE = 0.88;
-
 const isCollidingWithObstacle = (
-  player: Pick<PlayerEntity, 'x' | 'y' | 'size' | 'obstacleCollisionScale'>,
-  obstacle: Pick<ObstacleEntity, 'x' | 'y' | 'width' | 'height'>,
+  player: Pick<
+    PlayerEntity,
+    'x' | 'y' | 'size' | 'obstacleCollisionScale' | 'colliderInsetX' | 'colliderInsetY'
+  >,
+  obstacle: Pick<ObstacleEntity, 'x' | 'y' | 'width' | 'height' | 'colliderInsetX' | 'colliderInsetY'>,
 ) => {
-  const playerScale =
-    PLAYER_OBSTACLE_HITBOX_SCALE *
-    (typeof player.obstacleCollisionScale === 'number' ? player.obstacleCollisionScale : 1);
-  const playerRect = toInsetRect(toPlayerRect(player), playerScale);
-  const obstacleRect = toInsetRect(toEntityRect(obstacle), OBSTACLE_HITBOX_SCALE);
+  const playerScale = typeof player.obstacleCollisionScale === 'number' ? player.obstacleCollisionScale : 1;
+  const playerRect = getPlayerBounds({
+    ...player,
+    colliderInsetX: player.colliderInsetX * playerScale,
+    colliderInsetY: player.colliderInsetY * playerScale,
+  });
+  const obstacleRect = getEntityBounds(obstacle, obstacle.colliderInsetX, obstacle.colliderInsetY);
+
+  if (playerRect.bottom < obstacleRect.top || playerRect.top > obstacleRect.bottom) {
+    return false;
+  }
 
   return intersects(playerRect, obstacleRect);
 };
@@ -65,26 +79,43 @@ export const getFirstCollidingObstacleIndex = (
   player: PlayerEntity,
   obstacles: ObstacleEntity[],
 ): number => {
-  return obstacles.findIndex((obstacle) => isCollidingWithObstacle(player, obstacle));
+  const playerBounds = getPlayerBounds(player);
+  for (let index = 0; index < obstacles.length; index += 1) {
+    const obstacle = obstacles[index];
+    const obstacleBounds = getEntityBounds(obstacle, obstacle.colliderInsetX, obstacle.colliderInsetY);
+
+    if (playerBounds.bottom < obstacleBounds.top || playerBounds.top > obstacleBounds.bottom) {
+      continue;
+    }
+
+    if (isCollidingWithObstacle(player, obstacle)) {
+      return index;
+    }
+  }
+
+  return -1;
 };
 
 export const getCollectedPowerUpIndexes = (
   player: PlayerEntity,
   powerUps: PowerUpEntity[],
 ): number[] => {
-  return powerUps.reduce<number[]>((indexes, powerUp, index) => {
-    if (isColliding(player, powerUp)) {
+  const indexes: number[] = [];
+  for (let index = 0; index < powerUps.length; index += 1) {
+    if (isColliding(player, powerUps[index])) {
       indexes.push(index);
     }
-    return indexes;
-  }, []);
+  }
+  return indexes;
 };
 
 export const getCollectedGoldIndexes = (
   player: PlayerEntity,
   goldItems: GoldEntity[],
 ): number[] => {
-  return goldItems.reduce<number[]>((indexes, gold, index) => {
+  const indexes: number[] = [];
+  for (let index = 0; index < goldItems.length; index += 1) {
+    const gold = goldItems[index];
     if (
       isColliding(player, {
         x: gold.x,
@@ -95,6 +126,6 @@ export const getCollectedGoldIndexes = (
     ) {
       indexes.push(index);
     }
-    return indexes;
-  }, []);
+  }
+  return indexes;
 };
