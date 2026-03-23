@@ -24,12 +24,16 @@ export const CHARACTER_SKINS: Record<CharacterSkinKey, CharacterSkin> = {
     label: 'SQUARE',
     cost: 0,
     placeholderColor: '#60a5fa',
+    sizeMultiplier: 0.8,
+
   },
   ninja: {
     key: 'ninja',
     label: 'NINJA',
     cost: 10,
     image: require('../../assets/ninja.png'),
+    sizeMultiplier: 0.8,
+
     placeholderColor: '#a78bfa',
   },
   cat: {
@@ -37,6 +41,8 @@ export const CHARACTER_SKINS: Record<CharacterSkinKey, CharacterSkin> = {
     label: 'CAT',
     cost: 15,
     image: require('../../assets/cat.png'),
+    sizeMultiplier: 0.8,
+
     placeholderColor: '#f59e0b',
   },
   rocket: {
@@ -44,6 +50,7 @@ export const CHARACTER_SKINS: Record<CharacterSkinKey, CharacterSkin> = {
     label: 'ROCKET',
     cost: 30,
     image: require('../../assets/rocket.png'),
+    sizeMultiplier: 0.8,
     placeholderColor: '#ef4444',
   },
 
@@ -53,7 +60,7 @@ export const CHARACTER_SKINS: Record<CharacterSkinKey, CharacterSkin> = {
     cost: 25,
     image: require('../../assets/car1.png'),
     placeholderColor: '#22c55e',
-    sizeMultiplier: 2,
+    sizeMultiplier: 1,
     obstacleCollisionScale: 0.8,
   },
   car2: {
@@ -62,7 +69,7 @@ export const CHARACTER_SKINS: Record<CharacterSkinKey, CharacterSkin> = {
     cost: 25,
     image: require('../../assets/car2.png'),
     placeholderColor: '#3b82f6',
-    sizeMultiplier: 2,
+    sizeMultiplier: 1,
     obstacleCollisionScale: 0.8,
   },
   car3: {
@@ -71,7 +78,7 @@ export const CHARACTER_SKINS: Record<CharacterSkinKey, CharacterSkin> = {
     cost: 25,
     image: require('../../assets/car3.png'),
     placeholderColor: '#a855f7',
-    sizeMultiplier: 2,
+    sizeMultiplier: 1,
     obstacleCollisionScale: 0.8,
   },
   car4: {
@@ -80,7 +87,7 @@ export const CHARACTER_SKINS: Record<CharacterSkinKey, CharacterSkin> = {
     cost: 25,
     image: require('../../assets/car4.png'),
     placeholderColor: '#f43f5e',
-    sizeMultiplier: 2,
+    sizeMultiplier: 1,
     obstacleCollisionScale: 0.8,
   },
 };
