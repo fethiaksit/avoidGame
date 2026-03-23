@@ -29,7 +29,11 @@ const PLAYBACK_CONFIG: Record<SoundKey, { volume: number; stopBeforeReplay: bool
   gameOver: { volume: 1, stopBeforeReplay: true },
 };
 
-export const useGameSounds = () => {
+interface UseGameSoundsOptions {
+  soundEnabled?: boolean;
+}
+
+export const useGameSounds = ({ soundEnabled = true }: UseGameSoundsOptions = {}) => {
   const soundsRef = useRef<LoadedSounds>({});
 
   useEffect(() => {
@@ -93,6 +97,8 @@ export const useGameSounds = () => {
   }, []);
 
   const playSound = useCallback(async (key: SoundKey) => {
+    if (!soundEnabled) return;
+
     const sound = soundsRef.current[key];
     if (!sound) return;
 
@@ -110,7 +116,7 @@ export const useGameSounds = () => {
     } catch {
       // no-op: avoid bubbling transient playback errors during gameplay
     }
-  }, []);
+  }, [soundEnabled]);
 
   return useMemo(
     () => ({
