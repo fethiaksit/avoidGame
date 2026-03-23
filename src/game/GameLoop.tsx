@@ -3,6 +3,7 @@ import { LayoutChangeEvent, Modal, Pressable, StyleSheet, Text, View } from 'rea
 import { Canvas } from '@shopify/react-native-skia';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CHARACTER_SKINS, CharacterSkinKey } from './characters';
 import { GAME_COLORS, GAME_CONFIG } from './constants';
@@ -23,6 +24,7 @@ import { Obstacle } from '../components/Obstacle';
 import { Player } from '../components/Player';
 import { PowerUp } from '../components/PowerUp';
 import { Gold } from '../components/Gold';
+import { PauseMenuModal } from '../components/PauseMenuModal';
 import { GameSnapshot, GoldEntity, ObstacleEntity, PlayerEntity, PowerUpEntity } from '../types/game';
 
 interface GameLoopProps {
@@ -31,6 +33,8 @@ interface GameLoopProps {
   onSpendGold: (amount: number) => Promise<void>;
   selectedSkin: CharacterSkinKey;
   totalGold: number;
+  soundEnabled: boolean;
+  onSoundEnabledChange: (value: boolean) => void;
   onCoinPickup: () => void;
   onShieldPickup: () => void;
   onShieldBlock: () => void;
@@ -71,12 +75,15 @@ export const GameLoop = ({
   onSpendGold,
   selectedSkin,
   totalGold,
+  soundEnabled,
+  onSoundEnabledChange,
   onCoinPickup,
   onShieldPickup,
   onShieldBlock,
   onCrash,
   onButtonClick,
 }: GameLoopProps) => {
+  const insets = useSafeAreaInsets();
   const selectedCharacterSkin = useMemo(() => CHARACTER_SKINS[selectedSkin], [selectedSkin]);
   const playerSize = useMemo(() => {
     const baseSize = GAME_CONFIG.player.size;
@@ -411,6 +418,14 @@ export const GameLoop = ({
     startLoop();
   }, [onButtonClick, startLoop]);
 
+  const handleSoundChange = useCallback(
+    (nextValue: boolean) => {
+      onButtonClick();
+      onSoundEnabledChange(nextValue);
+    },
+    [onButtonClick, onSoundEnabledChange],
+  );
+
   const continueFromRevive = useCallback(async () => {
     const runtime = runtimeRef.current;
     if (!runtime || runtime.hasRevived || totalGold < GAME_CONFIG.economy.reviveCost) {
@@ -499,11 +514,19 @@ export const GameLoop = ({
   }, [stopLoop]);
 
   const canRevive = totalGold >= GAME_CONFIG.economy.reviveCost;
-  const handleModalRequestClose = overlayType === 'pause' ? closePauseOverlayAndResume : undefined;
 
   return (
     <View style={styles.wrapper}>
-      <View style={styles.header}>
+      <View
+        style={[
+          styles.header,
+          {
+            paddingTop: Math.max(insets.top + 10, 14),
+            paddingRight: Math.max(insets.right + 12, 16),
+            paddingLeft: Math.max(insets.left + 12, 16),
+          },
+        ]}
+      >
         <Text style={styles.headerText}>Score: {snapshot.score}</Text>
         <Text style={styles.headerText}>Level: {snapshot.level + 1}</Text>
         <Text style={styles.headerText}>Shields: {snapshot.shields}</Text>
@@ -568,51 +591,39 @@ export const GameLoop = ({
         </View>
       </GestureDetector>
 
-      <Modal visible={overlayType !== 'none'} transparent animationType="fade" onRequestClose={handleModalRequestClose}>
+      <PauseMenuModal
+        visible={overlayType === 'pause'}
+        soundEnabled={soundEnabled}
+        onSoundEnabledChange={handleSoundChange}
+        onResume={closePauseOverlayAndResume}
+        onRestart={restartRun}
+        onRequestClose={closePauseOverlayAndResume}
+      />
+
+      <Modal visible={overlayType === 'revive'} transparent animationType="fade">
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
-            <Ionicons
-              name={overlayType === 'pause' ? 'pause-circle' : 'heart-circle'}
-              size={46}
-              color={overlayType === 'pause' ? '#60a5fa' : '#f87171'}
-            />
-            <Text style={styles.modalTitle}>
-              {overlayType === 'pause' ? 'Oyun Duraklatıldı' : 'Devam Etmek İster misin?'}
+            <Ionicons name="heart-circle" size={46} color="#f87171" />
+            <Text style={styles.modalTitle}>Devam Etmek İster misin?</Text>
+            <Text style={styles.modalSubtitle}>
+              {canRevive
+                ? 'Bu koşuya 10 altınla yalnızca bir kez daha devam edebilirsin.'
+                : 'Altının yetersiz. İstersen koşuyu burada bitirebilirsin.'}
             </Text>
 
-            {overlayType === 'revive' ? (
-              <Text style={styles.modalSubtitle}>
-                {canRevive
-                  ? 'Bu koşuya 10 altınla yalnızca bir kez daha devam edebilirsin.'
-                  : 'Altının yetersiz. İstersen koşuyu burada bitirebilirsin.'}
-              </Text>
-            ) : null}
-
-            {overlayType === 'pause' ? (
-              <>
-                <Pressable style={styles.modalPrimaryButton} onPress={closePauseOverlayAndResume}>
-                  <Text style={styles.modalButtonText}>Devam Et</Text>
-                </Pressable>
-                <Pressable style={styles.modalSecondaryButton} onPress={restartRun}>
-                  <Text style={styles.modalButtonText}>Yeniden Başlat</Text>
-                </Pressable>
-              </>
-            ) : (
-              <>
-                <Pressable
-                  style={[styles.modalPrimaryButton, (!canRevive || isSpendingGold) && styles.modalButtonDisabled]}
-                  onPress={continueFromRevive}
-                  disabled={!canRevive || isSpendingGold}
-                >
-                  <Text style={styles.modalButtonText}>
-                    10 Altınla Devam Et
-                  </Text>
-                </Pressable>
-                <Pressable style={styles.modalSecondaryButton} onPress={finishRun}>
-                  <Text style={styles.modalButtonText}>Oyunu Bitir</Text>
-                </Pressable>
-              </>
-            )}
+            <Pressable
+              style={[
+                styles.modalPrimaryButton,
+                (!canRevive || isSpendingGold) && styles.modalButtonDisabled,
+              ]}
+              onPress={continueFromRevive}
+              disabled={!canRevive || isSpendingGold}
+            >
+              <Text style={styles.modalButtonText}>10 Altınla Devam Et</Text>
+            </Pressable>
+            <Pressable style={styles.modalSecondaryButton} onPress={finishRun}>
+              <Text style={styles.modalButtonText}>Oyunu Bitir</Text>
+            </Pressable>
           </View>
         </View>
       </Modal>
@@ -629,8 +640,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'flex-start',
     flexWrap: 'wrap',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingBottom: 12,
     backgroundColor: GAME_COLORS.panel,
     gap: 10,
   },

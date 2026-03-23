@@ -12,6 +12,8 @@ interface GameScreenProps {
   onSpendGold: (amount: number) => Promise<void>;
   selectedSkin: CharacterSkinKey;
   totalGold: number;
+  soundEnabled: boolean;
+  onSoundEnabledChange: (value: boolean) => void;
   onCoinPickup: () => void;
   onShieldPickup: () => void;
   onShieldBlock: () => void;
@@ -25,6 +27,8 @@ export const GameScreen = ({
   onSpendGold,
   selectedSkin,
   totalGold,
+  soundEnabled,
+  onSoundEnabledChange,
   onCoinPickup,
   onShieldPickup,
   onShieldBlock,
@@ -86,6 +90,8 @@ export const GameScreen = ({
         onSpendGold={onSpendGold}
         selectedSkin={selectedSkin}
         totalGold={totalGold}
+        soundEnabled={soundEnabled}
+        onSoundEnabledChange={onSoundEnabledChange}
         onCoinPickup={onCoinPickup}
         onShieldPickup={onShieldPickup}
         onShieldBlock={onShieldBlock}
