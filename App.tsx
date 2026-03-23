@@ -4,7 +4,6 @@ import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
-import { SettingsPanel } from './src/components/SettingsPanel';
 import { GameOverScreen } from './src/screens/GameOverScreen';
 import { GameScreen } from './src/screens/GameScreen';
 import { MenuScreen } from './src/screens/MenuScreen';
@@ -32,7 +31,6 @@ export default function App() {
     useGameSounds({ soundEnabled });
   const [status, setStatus] = useState<GameStatus>('menu');
   const [isReady, setIsReady] = useState(false);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [score, setScore] = useState(0);
   const [earnedGold, setEarnedGold] = useState(0);
   const [highScore, setHighScore] = useState(0);
@@ -140,52 +138,45 @@ export default function App() {
       <SafeAreaProvider>
         <SafeAreaView style={styles.appContainer}>
           <StatusBar style="light" hidden={status === 'playing'} />
-        {status === 'menu' ? (
-          <MenuScreen
-            highScore={highScore}
-            totalGold={totalGold}
-            onStart={onStart}
-            selectedSkin={selectedSkin}
-            unlockedCharacters={unlockedCharacters}
-            onSelectSkin={onSelectSkin}
-            onUnlockSkin={onUnlockSkin}
-            onButtonClick={playClick}
-          />
-        ) : null}
-        {status === 'playing' ? (
-          <GameScreen
-            onGameOver={onGameOver}
-            onRestart={onStart}
-            onSpendGold={onSpendGold}
-            selectedSkin={selectedSkin}
-            totalGold={totalGold}
-            onCoinPickup={playCoin}
-            onShieldPickup={playShieldOn}
-            onShieldBlock={playShieldBlock}
-            onCrash={playCrash}
-            onButtonClick={playClick}
-          />
-        ) : null}
-        {status === 'gameOver' ? (
-          <GameOverScreen
-            score={score}
-            highScore={highScore}
-            earnedGold={earnedGold}
-            totalGold={totalGold}
-            onRetry={onStart}
-            onBackToMenu={onBackToMenu}
-            onButtonClick={playClick}
-          />
-        ) : null}
-
-          <SettingsPanel
-            isOpen={isSettingsOpen}
-            soundEnabled={soundEnabled}
-            onOpen={() => setIsSettingsOpen(true)}
-            onClose={() => setIsSettingsOpen(false)}
-            onSoundEnabledChange={setSoundEnabled}
-            onButtonClick={playClick}
-          />
+          {status === 'menu' ? (
+            <MenuScreen
+              highScore={highScore}
+              totalGold={totalGold}
+              onStart={onStart}
+              selectedSkin={selectedSkin}
+              unlockedCharacters={unlockedCharacters}
+              onSelectSkin={onSelectSkin}
+              onUnlockSkin={onUnlockSkin}
+              onButtonClick={playClick}
+            />
+          ) : null}
+          {status === 'playing' ? (
+            <GameScreen
+              onGameOver={onGameOver}
+              onRestart={onStart}
+              onSpendGold={onSpendGold}
+              selectedSkin={selectedSkin}
+              totalGold={totalGold}
+              soundEnabled={soundEnabled}
+              onSoundEnabledChange={setSoundEnabled}
+              onCoinPickup={playCoin}
+              onShieldPickup={playShieldOn}
+              onShieldBlock={playShieldBlock}
+              onCrash={playCrash}
+              onButtonClick={playClick}
+            />
+          ) : null}
+          {status === 'gameOver' ? (
+            <GameOverScreen
+              score={score}
+              highScore={highScore}
+              earnedGold={earnedGold}
+              totalGold={totalGold}
+              onRetry={onStart}
+              onBackToMenu={onBackToMenu}
+              onButtonClick={playClick}
+            />
+          ) : null}
         </SafeAreaView>
       </SafeAreaProvider>
     </GestureHandlerRootView>
