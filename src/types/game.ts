@@ -17,6 +17,7 @@ export interface PlayerEntity {
   size: number;
   speed: number;
   targetX: number;
+  obstacleCollisionScale?: number;
 }
 
 export interface ObstacleEntity {
