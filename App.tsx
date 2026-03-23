@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, AppState, AppStateStatus, StyleSheet } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
@@ -14,23 +14,20 @@ import {
   getDefaultUnlockMap,
 } from './src/game/characters';
 import { GAME_COLORS } from './src/game/constants';
-import { useAudioSettings } from './src/hooks/useAudioSettings';
 import { useGameSounds } from './src/hooks/useGameSounds';
-import { getHighScore, saveHighScoreIfNeeded } from './src/storage/highScore';
 import {
-  loadProgression,
-  saveGold,
-  saveSelectedCharacter,
-  saveUnlockedCharacters,
-} from './src/storage/progression';
+  PersistedGameData,
+  loadGameData,
+  saveGameData,
+  getDefaultGameData,
+} from './src/storage/gameStorage';
 import { CharacterUnlockMap, GameStatus } from './src/types/game';
 
 export default function App() {
-  const { soundEnabled, isSettingsReady, setSoundEnabled } = useAudioSettings();
-  const { playCoin, playShieldOn, playShieldBlock, playCrash, playClick, playGameOver } =
-    useGameSounds({ soundEnabled });
   const [status, setStatus] = useState<GameStatus>('menu');
   const [isReady, setIsReady] = useState(false);
+  const [isHydrated, setIsHydrated] = useState(false);
+
   const [score, setScore] = useState(0);
   const [earnedGold, setEarnedGold] = useState(0);
   const [highScore, setHighScore] = useState(0);
@@ -39,19 +36,90 @@ export default function App() {
   const [unlockedCharacters, setUnlockedCharacters] = useState<CharacterUnlockMap>(
     getDefaultUnlockMap(),
   );
+  const [soundEnabled, setSoundEnabled] = useState(getDefaultGameData().soundEnabled);
+
+  const latestDataRef = useRef<PersistedGameData | null>(null);
+  const savePromiseRef = useRef<Promise<void>>(Promise.resolve());
+
+  const { playCoin, playShieldOn, playShieldBlock, playCrash, playClick, playGameOver } =
+    useGameSounds({ soundEnabled });
+
+  const buildPersistedData = useCallback(
+    (
+      overrides: Partial<PersistedGameData> = {},
+      source: {
+        totalGold?: number;
+        unlockedCharacters?: CharacterUnlockMap;
+        selectedCharacter?: CharacterSkinKey;
+        highScore?: number;
+        soundEnabled?: boolean;
+      } = {},
+    ): PersistedGameData => ({
+      totalGold: source.totalGold ?? totalGold,
+      unlockedCharacters: source.unlockedCharacters ?? unlockedCharacters,
+      selectedCharacter: source.selectedCharacter ?? selectedSkin,
+      highScore: source.highScore ?? highScore,
+      soundEnabled: source.soundEnabled ?? soundEnabled,
+      ...overrides,
+    }),
+    [totalGold, unlockedCharacters, selectedSkin, highScore, soundEnabled],
+  );
+
+  const queueSave = useCallback((data: PersistedGameData) => {
+    latestDataRef.current = data;
+    savePromiseRef.current = savePromiseRef.current
+      .catch(() => {
+        // keep queue alive
+      })
+      .then(() => saveGameData(data));
+
+    return savePromiseRef.current;
+  }, []);
 
   useEffect(() => {
-    const loadAppData = async () => {
-      const [best, progression] = await Promise.all([getHighScore(), loadProgression()]);
-      setHighScore(best);
-      setTotalGold(progression.gold);
-      setSelectedSkin(progression.selectedCharacter);
-      setUnlockedCharacters(progression.unlockedCharacters);
-      setIsReady(true);
+    const hydrate = async () => {
+      try {
+        const data = await loadGameData();
+        setTotalGold(data.totalGold);
+        setUnlockedCharacters(data.unlockedCharacters);
+        setSelectedSkin(data.selectedCharacter);
+        setHighScore(data.highScore);
+        setSoundEnabled(data.soundEnabled);
+        latestDataRef.current = data;
+      } finally {
+        setIsHydrated(true);
+        setIsReady(true);
+      }
     };
 
-    loadAppData();
+    hydrate();
   }, []);
+
+  useEffect(() => {
+    if (!isHydrated) return;
+
+    const snapshot = buildPersistedData();
+    queueSave(snapshot).catch(() => {
+      console.warn('[storage] Failed to persist game data');
+    });
+  }, [buildPersistedData, isHydrated, queueSave]);
+
+  useEffect(() => {
+    const onAppStateChange = (nextState: AppStateStatus) => {
+      if (nextState !== 'inactive' && nextState !== 'background') return;
+
+      const snapshot = latestDataRef.current ?? buildPersistedData();
+      queueSave(snapshot).catch(() => {
+        console.warn('[storage] Failed to flush game data on app background');
+      });
+    };
+
+    const subscription = AppState.addEventListener('change', onAppStateChange);
+
+    return () => {
+      subscription.remove();
+    };
+  }, [buildPersistedData, queueSave]);
 
   const onStart = useCallback(() => {
     setScore(0);
@@ -63,9 +131,10 @@ export default function App() {
     async (skin: CharacterSkinKey) => {
       if (!unlockedCharacters[skin]) return;
       setSelectedSkin(skin);
-      await saveSelectedCharacter(skin);
+      const snapshot = buildPersistedData({ selectedCharacter: skin });
+      await queueSave(snapshot);
     },
-    [unlockedCharacters],
+    [buildPersistedData, queueSave, unlockedCharacters],
   );
 
   const onUnlockSkin = useCallback(
@@ -80,13 +149,15 @@ export default function App() {
       setUnlockedCharacters(nextUnlocked);
       setSelectedSkin(skin);
 
-      await Promise.all([
-        saveGold(nextGold),
-        saveUnlockedCharacters(nextUnlocked),
-        saveSelectedCharacter(skin),
-      ]);
+      const snapshot = buildPersistedData({
+        totalGold: nextGold,
+        unlockedCharacters: nextUnlocked,
+        selectedCharacter: skin,
+      });
+
+      await queueSave(snapshot);
     },
-    [totalGold, unlockedCharacters],
+    [buildPersistedData, queueSave, totalGold, unlockedCharacters],
   );
 
   const onGameOver = useCallback(
@@ -96,33 +167,49 @@ export default function App() {
       setEarnedGold(runEarnedGold);
       setStatus('gameOver');
 
+      const nextGold = totalGold + Math.max(0, runEarnedGold);
+      const nextHighScore = Math.max(highScore, finalScore);
+
       if (runEarnedGold > 0) {
-        let nextGoldValue = 0;
-        setTotalGold((prev) => {
-          nextGoldValue = prev + runEarnedGold;
-          return nextGoldValue;
-        });
-        await saveGold(nextGoldValue);
+        setTotalGold(nextGold);
       }
 
-      const best = await saveHighScoreIfNeeded(finalScore);
-      setHighScore(best);
+      if (nextHighScore !== highScore) {
+        setHighScore(nextHighScore);
+      }
+
+      const snapshot = buildPersistedData({
+        totalGold: runEarnedGold > 0 ? nextGold : totalGold,
+        highScore: nextHighScore,
+      });
+
+      await queueSave(snapshot);
     },
-    [playGameOver],
+    [buildPersistedData, highScore, playGameOver, queueSave, totalGold],
   );
 
-  const onSpendGold = useCallback(async (amount: number) => {
-    let nextGoldValue = 0;
-    setTotalGold((prev) => {
-      nextGoldValue = Math.max(0, prev - amount);
-      return nextGoldValue;
-    });
-    await saveGold(nextGoldValue);
-  }, []);
+  const onSpendGold = useCallback(
+    async (amount: number) => {
+      const nextGold = Math.max(0, totalGold - amount);
+      setTotalGold(nextGold);
+      const snapshot = buildPersistedData({ totalGold: nextGold });
+      await queueSave(snapshot);
+    },
+    [buildPersistedData, queueSave, totalGold],
+  );
+
+  const onSoundEnabledChange = useCallback(
+    async (value: boolean) => {
+      setSoundEnabled(value);
+      const snapshot = buildPersistedData({ soundEnabled: value });
+      await queueSave(snapshot);
+    },
+    [buildPersistedData, queueSave],
+  );
 
   const onBackToMenu = useCallback(() => setStatus('menu'), []);
 
-  if (!isReady || !isSettingsReady) {
+  if (!isReady) {
     return (
       <GestureHandlerRootView style={styles.root}>
         <SafeAreaView style={styles.loaderContainer}>
@@ -158,7 +245,7 @@ export default function App() {
               selectedSkin={selectedSkin}
               totalGold={totalGold}
               soundEnabled={soundEnabled}
-              onSoundEnabledChange={setSoundEnabled}
+              onSoundEnabledChange={onSoundEnabledChange}
               onCoinPickup={playCoin}
               onShieldPickup={playShieldOn}
               onShieldBlock={playShieldBlock}
