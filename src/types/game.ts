@@ -62,4 +62,5 @@ export interface GameSnapshot {
   isPaused: boolean;
   shields: number;
   earnedGold: number;
+  hasInvulnerability: boolean;
 }
