@@ -27,10 +27,15 @@ const parseUnlocks = (value: string | null): CharacterUnlockMap => {
     const parsed = JSON.parse(value) as Record<string, unknown>;
 
     return {
+      ...defaults,
       square: true,
       ninja: Boolean(parsed.ninja),
       cat: Boolean(parsed.cat),
       rocket: Boolean(parsed.rocket),
+      car1: Boolean(parsed.car1),
+      car2: Boolean(parsed.car2),
+      car3: Boolean(parsed.car3),
+      car4: Boolean(parsed.car4),
     };
   } catch {
     return defaults;

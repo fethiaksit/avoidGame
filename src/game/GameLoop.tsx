@@ -53,6 +53,10 @@ export const GameLoop = ({ onGameOver, selectedSkin, totalGold }: GameLoopProps)
     const multiplier = selectedCharacterSkin.sizeMultiplier ?? 1;
     return baseSize * multiplier;
   }, [selectedCharacterSkin]);
+  const playerObstacleCollisionScale = useMemo(
+    () => selectedCharacterSkin.obstacleCollisionScale ?? 1,
+    [selectedCharacterSkin],
+  );
 
   const [playArea, setPlayArea] = useState({ width: 0, height: 0 });
   const [snapshot, setSnapshot] = useState<GameSnapshot>({
@@ -232,6 +236,7 @@ export const GameLoop = ({ onGameOver, selectedSkin, totalGold }: GameLoopProps)
         size: playerSize,
         speed: GAME_CONFIG.player.speed,
         targetX: spawnX,
+        obstacleCollisionScale: playerObstacleCollisionScale,
       },
       obstacles: [],
       powerUps: [],
@@ -256,7 +261,7 @@ export const GameLoop = ({ onGameOver, selectedSkin, totalGold }: GameLoopProps)
     });
 
     startLoop();
-  }, [playerSize, startLoop]);
+  }, [playerObstacleCollisionScale, playerSize, startLoop]);
 
   const updatePlayerTargetFromTouch = useCallback(
     (touchX: number) => {
@@ -317,6 +322,7 @@ export const GameLoop = ({ onGameOver, selectedSkin, totalGold }: GameLoopProps)
     runtime.player.x = Math.max(0, Math.min(runtime.player.x, maxX));
     runtime.player.targetX = Math.max(0, Math.min(runtime.player.targetX, maxX));
     runtime.player.size = playerSize;
+    runtime.player.obstacleCollisionScale = playerObstacleCollisionScale;
     runtime.player.y = Math.max(
       0,
       playArea.height - GAME_CONFIG.player.bottomOffset - playerSize,
@@ -325,7 +331,7 @@ export const GameLoop = ({ onGameOver, selectedSkin, totalGold }: GameLoopProps)
     runtime.player.x = Math.max(0, Math.min(runtime.player.x, resizedMaxX));
     runtime.player.targetX = Math.max(0, Math.min(runtime.player.targetX, resizedMaxX));
     syncSnapshot();
-  }, [initRuntime, playArea.height, playArea.width, playerSize, syncSnapshot]);
+  }, [initRuntime, playArea.height, playArea.width, playerObstacleCollisionScale, playerSize, syncSnapshot]);
 
   useEffect(() => {
     return () => {

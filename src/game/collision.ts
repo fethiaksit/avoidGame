@@ -49,10 +49,13 @@ const PLAYER_OBSTACLE_HITBOX_SCALE = 0.9;
 const OBSTACLE_HITBOX_SCALE = 0.88;
 
 const isCollidingWithObstacle = (
-  player: Pick<PlayerEntity, 'x' | 'y' | 'size'>,
+  player: Pick<PlayerEntity, 'x' | 'y' | 'size' | 'obstacleCollisionScale'>,
   obstacle: Pick<ObstacleEntity, 'x' | 'y' | 'width' | 'height'>,
 ) => {
-  const playerRect = toInsetRect(toPlayerRect(player), PLAYER_OBSTACLE_HITBOX_SCALE);
+  const playerScale =
+    PLAYER_OBSTACLE_HITBOX_SCALE *
+    (typeof player.obstacleCollisionScale === 'number' ? player.obstacleCollisionScale : 1);
+  const playerRect = toInsetRect(toPlayerRect(player), playerScale);
   const obstacleRect = toInsetRect(toEntityRect(obstacle), OBSTACLE_HITBOX_SCALE);
 
   return intersects(playerRect, obstacleRect);
