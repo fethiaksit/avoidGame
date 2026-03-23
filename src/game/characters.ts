@@ -14,6 +14,7 @@ export interface CharacterSkin {
   cost: number;
   image?: number;
   placeholderColor: string;
+  sizeMultiplier?: number;
 }
 
 export const CHARACTER_SKINS: Record<CharacterSkinKey, CharacterSkin> = {
@@ -51,6 +52,7 @@ export const CHARACTER_SKINS: Record<CharacterSkinKey, CharacterSkin> = {
     cost: 1,
     image: require('../../assets/car1.png'),
     placeholderColor: '#22c55e',
+    sizeMultiplier: 3,
   },
   car2: {
     key: 'car2',
@@ -58,6 +60,7 @@ export const CHARACTER_SKINS: Record<CharacterSkinKey, CharacterSkin> = {
     cost: 1,
     image: require('../../assets/car2.png'),
     placeholderColor: '#3b82f6',
+    sizeMultiplier: 3,
   },
   car3: {
     key: 'car3',
@@ -65,6 +68,7 @@ export const CHARACTER_SKINS: Record<CharacterSkinKey, CharacterSkin> = {
     cost: 2,
     image: require('../../assets/car3.png'),
     placeholderColor: '#a855f7',
+    sizeMultiplier: 3,
   },
   car4: {
     key: 'car4',
@@ -72,6 +76,7 @@ export const CHARACTER_SKINS: Record<CharacterSkinKey, CharacterSkin> = {
     cost: 2,
     image: require('../../assets/car4.png'),
     placeholderColor: '#f43f5e',
+    sizeMultiplier: 3,
   },
 };
 

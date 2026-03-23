@@ -47,6 +47,13 @@ interface GameRuntime {
 const POWER_UP_RENDER_SCALE = 2;
 
 export const GameLoop = ({ onGameOver, selectedSkin, totalGold }: GameLoopProps) => {
+  const selectedCharacterSkin = useMemo(() => CHARACTER_SKINS[selectedSkin], [selectedSkin]);
+  const playerSize = useMemo(() => {
+    const baseSize = GAME_CONFIG.player.size;
+    const multiplier = selectedCharacterSkin.sizeMultiplier ?? 1;
+    return baseSize * multiplier;
+  }, [selectedCharacterSkin]);
+
   const [playArea, setPlayArea] = useState({ width: 0, height: 0 });
   const [snapshot, setSnapshot] = useState<GameSnapshot>({
     playerX: 0,
@@ -66,8 +73,8 @@ export const GameLoop = ({ onGameOver, selectedSkin, totalGold }: GameLoopProps)
   const isRunningRef = useRef(false);
 
   const playerY = useMemo(
-    () => Math.max(0, playArea.height - GAME_CONFIG.player.bottomOffset - GAME_CONFIG.player.size),
-    [playArea.height],
+    () => Math.max(0, playArea.height - GAME_CONFIG.player.bottomOffset - playerSize),
+    [playArea.height, playerSize],
   );
 
   const syncSnapshot = useCallback(() => {
@@ -118,7 +125,7 @@ export const GameLoop = ({ onGameOver, selectedSkin, totalGold }: GameLoopProps)
         GAME_CONFIG.difficulty.maxLevel,
       );
 
-      const maxX = playArea.width - runtime.player.size;
+      const maxX = Math.max(0, playArea.width - runtime.player.size);
       const clampedTargetX = Math.max(0, Math.min(runtime.player.targetX, maxX));
       const smoothingStep = 1 - Math.exp(-GAME_CONFIG.player.smoothing * clampedDt);
       const interpolatedDelta = (clampedTargetX - runtime.player.x) * smoothingStep;
@@ -212,17 +219,17 @@ export const GameLoop = ({ onGameOver, selectedSkin, totalGold }: GameLoopProps)
   }, [loop]);
 
   const initRuntime = useCallback((width: number, height: number) => {
-    const spawnX = Math.max(0, width / 2 - GAME_CONFIG.player.size / 2);
+    const spawnX = Math.max(0, width / 2 - playerSize / 2);
     const spawnY = Math.max(
       0,
-      height - GAME_CONFIG.player.bottomOffset - GAME_CONFIG.player.size,
+      height - GAME_CONFIG.player.bottomOffset - playerSize,
     );
 
     runtimeRef.current = {
       player: {
         x: spawnX,
         y: spawnY,
-        size: GAME_CONFIG.player.size,
+        size: playerSize,
         speed: GAME_CONFIG.player.speed,
         targetX: spawnX,
       },
@@ -249,7 +256,7 @@ export const GameLoop = ({ onGameOver, selectedSkin, totalGold }: GameLoopProps)
     });
 
     startLoop();
-  }, [startLoop]);
+  }, [playerSize, startLoop]);
 
   const updatePlayerTargetFromTouch = useCallback(
     (touchX: number) => {
@@ -257,7 +264,7 @@ export const GameLoop = ({ onGameOver, selectedSkin, totalGold }: GameLoopProps)
       if (!runtime || playArea.width <= 0) return;
 
       const halfSize = runtime.player.size / 2;
-      const maxX = playArea.width - runtime.player.size;
+      const maxX = Math.max(0, playArea.width - runtime.player.size);
       const targetX = Math.max(0, Math.min(touchX - halfSize, maxX));
       runtime.player.targetX = targetX;
     },
@@ -309,12 +316,16 @@ export const GameLoop = ({ onGameOver, selectedSkin, totalGold }: GameLoopProps)
     const maxX = Math.max(0, playArea.width - runtime.player.size);
     runtime.player.x = Math.max(0, Math.min(runtime.player.x, maxX));
     runtime.player.targetX = Math.max(0, Math.min(runtime.player.targetX, maxX));
+    runtime.player.size = playerSize;
     runtime.player.y = Math.max(
       0,
-      playArea.height - GAME_CONFIG.player.bottomOffset - runtime.player.size,
+      playArea.height - GAME_CONFIG.player.bottomOffset - playerSize,
     );
+    const resizedMaxX = Math.max(0, playArea.width - playerSize);
+    runtime.player.x = Math.max(0, Math.min(runtime.player.x, resizedMaxX));
+    runtime.player.targetX = Math.max(0, Math.min(runtime.player.targetX, resizedMaxX));
     syncSnapshot();
-  }, [initRuntime, playArea.height, playArea.width, syncSnapshot]);
+  }, [initRuntime, playArea.height, playArea.width, playerSize, syncSnapshot]);
 
   useEffect(() => {
     return () => {
@@ -350,8 +361,8 @@ export const GameLoop = ({ onGameOver, selectedSkin, totalGold }: GameLoopProps)
             <Player
               x={snapshot.playerX}
               y={playerY}
-              size={GAME_CONFIG.player.size}
-              skin={CHARACTER_SKINS[selectedSkin]}
+              size={playerSize}
+              skin={selectedCharacterSkin}
               hasShield={snapshot.shields > 0}
             />
 
