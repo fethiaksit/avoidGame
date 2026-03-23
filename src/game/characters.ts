@@ -28,21 +28,21 @@ export const CHARACTER_SKINS: Record<CharacterSkinKey, CharacterSkin> = {
   ninja: {
     key: 'ninja',
     label: 'NINJA',
-    cost: 60,
+    cost: 10,
     image: require('../../assets/ninja.png'),
     placeholderColor: '#a78bfa',
   },
   cat: {
     key: 'cat',
     label: 'CAT',
-    cost: 90,
+    cost: 15,
     image: require('../../assets/cat.png'),
     placeholderColor: '#f59e0b',
   },
   rocket: {
     key: 'rocket',
     label: 'ROCKET',
-    cost: 130,
+    cost: 30,
     image: require('../../assets/rocket.png'),
     placeholderColor: '#ef4444',
   },
@@ -50,7 +50,7 @@ export const CHARACTER_SKINS: Record<CharacterSkinKey, CharacterSkin> = {
   car1: {
     key: 'car1',
     label: 'CAR 1',
-    cost: 1,
+    cost: 25,
     image: require('../../assets/car1.png'),
     placeholderColor: '#22c55e',
     sizeMultiplier: 2,
@@ -59,7 +59,7 @@ export const CHARACTER_SKINS: Record<CharacterSkinKey, CharacterSkin> = {
   car2: {
     key: 'car2',
     label: 'CAR 2',
-    cost: 1,
+    cost: 25,
     image: require('../../assets/car2.png'),
     placeholderColor: '#3b82f6',
     sizeMultiplier: 2,
@@ -68,7 +68,7 @@ export const CHARACTER_SKINS: Record<CharacterSkinKey, CharacterSkin> = {
   car3: {
     key: 'car3',
     label: 'CAR 3',
-    cost: 2,
+    cost: 25,
     image: require('../../assets/car3.png'),
     placeholderColor: '#a855f7',
     sizeMultiplier: 2,
@@ -77,7 +77,7 @@ export const CHARACTER_SKINS: Record<CharacterSkinKey, CharacterSkin> = {
   car4: {
     key: 'car4',
     label: 'CAR 4',
-    cost: 2,
+    cost: 25,
     image: require('../../assets/car4.png'),
     placeholderColor: '#f43f5e',
     sizeMultiplier: 2,

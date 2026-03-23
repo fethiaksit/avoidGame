@@ -5,13 +5,27 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
+    "icon": ".assets/enemymoving.png",
     "ios": {
       "supportsTablet": true
     },
     "android": {
       "adaptiveIcon": {
+        "foregroundImage": "./assets/enemymoving.png",
         "backgroundColor": "#111827"
+      },
+      "package": "com.fethiaksit.avoid"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "a358b9f4-8330-47a7-8a93-7df5cfd2dcdf"
       }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/a358b9f4-8330-47a7-8a93-7df5cfd2dcdf"
     }
   }
 }
