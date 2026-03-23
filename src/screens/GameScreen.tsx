@@ -11,6 +11,11 @@ interface GameScreenProps {
   onSpendGold: (amount: number) => Promise<void>;
   selectedSkin: CharacterSkinKey;
   totalGold: number;
+  onCoinPickup: () => void;
+  onShieldPickup: () => void;
+  onShieldBlock: () => void;
+  onCrash: () => void;
+  onButtonClick: () => void;
 }
 
 export const GameScreen = ({
@@ -19,6 +24,11 @@ export const GameScreen = ({
   onSpendGold,
   selectedSkin,
   totalGold,
+  onCoinPickup,
+  onShieldPickup,
+  onShieldBlock,
+  onCrash,
+  onButtonClick,
 }: GameScreenProps) => {
   return (
     <SafeAreaView style={styles.container}>
@@ -28,6 +38,11 @@ export const GameScreen = ({
         onSpendGold={onSpendGold}
         selectedSkin={selectedSkin}
         totalGold={totalGold}
+        onCoinPickup={onCoinPickup}
+        onShieldPickup={onShieldPickup}
+        onShieldBlock={onShieldBlock}
+        onCrash={onCrash}
+        onButtonClick={onButtonClick}
       />
     </SafeAreaView>
   );

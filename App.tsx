@@ -22,8 +22,17 @@ import {
   saveUnlockedCharacters,
 } from './src/storage/progression';
 import { CharacterUnlockMap, GameStatus } from './src/types/game';
+import { useGameSounds } from './src/hooks/useGameSounds';
 
 export default function App() {
+  const {
+    playCoin,
+    playShieldOn,
+    playShieldBlock,
+    playCrash,
+    playClick,
+    playGameOver,
+  } = useGameSounds();
   const [status, setStatus] = useState<GameStatus>('menu');
   const [isReady, setIsReady] = useState(false);
   const [score, setScore] = useState(0);
@@ -85,6 +94,7 @@ export default function App() {
   );
 
   const onGameOver = useCallback(async (finalScore: number, runEarnedGold: number) => {
+    playGameOver();
     setScore(finalScore);
     setEarnedGold(runEarnedGold);
     setStatus('gameOver');
@@ -100,7 +110,7 @@ export default function App() {
 
     const best = await saveHighScoreIfNeeded(finalScore);
     setHighScore(best);
-  }, []);
+  }, [playGameOver]);
 
   const onSpendGold = useCallback(async (amount: number) => {
     let nextGoldValue = 0;
@@ -137,6 +147,7 @@ export default function App() {
             unlockedCharacters={unlockedCharacters}
             onSelectSkin={onSelectSkin}
             onUnlockSkin={onUnlockSkin}
+            onButtonClick={playClick}
           />
         ) : null}
         {status === 'playing' ? (
@@ -146,6 +157,11 @@ export default function App() {
             onSpendGold={onSpendGold}
             selectedSkin={selectedSkin}
             totalGold={totalGold}
+            onCoinPickup={playCoin}
+            onShieldPickup={playShieldOn}
+            onShieldBlock={playShieldBlock}
+            onCrash={playCrash}
+            onButtonClick={playClick}
           />
         ) : null}
         {status === 'gameOver' ? (
@@ -156,6 +172,7 @@ export default function App() {
             totalGold={totalGold}
             onRetry={onStart}
             onBackToMenu={onBackToMenu}
+            onButtonClick={playClick}
           />
         ) : null}
       </SafeAreaView>

@@ -31,6 +31,11 @@ interface GameLoopProps {
   onSpendGold: (amount: number) => Promise<void>;
   selectedSkin: CharacterSkinKey;
   totalGold: number;
+  onCoinPickup: () => void;
+  onShieldPickup: () => void;
+  onShieldBlock: () => void;
+  onCrash: () => void;
+  onButtonClick: () => void;
 }
 
 interface GameRuntime {
@@ -71,6 +76,11 @@ export const GameLoop = ({
   onSpendGold,
   selectedSkin,
   totalGold,
+  onCoinPickup,
+  onShieldPickup,
+  onShieldBlock,
+  onCrash,
+  onButtonClick,
 }: GameLoopProps) => {
   const selectedCharacterSkin = useMemo(() => CHARACTER_SKINS[selectedSkin], [selectedSkin]);
   const playerSize = useMemo(() => {
@@ -217,12 +227,14 @@ export const GameLoop = ({
       if (collectedPowerUpIndexes.length > 0) {
         runtime.shields += collectedPowerUpIndexes.length;
         removeIndexesInPlace(runtime.powerUps, collectedPowerUpIndexes);
+        onShieldPickup();
       }
 
       const collectedGoldIndexes = getCollectedGoldIndexes(runtime.player, runtime.goldItems);
       if (collectedGoldIndexes.length > 0) {
         runtime.earnedGold += collectedGoldIndexes.length;
         removeIndexesInPlace(runtime.goldItems, collectedGoldIndexes);
+        onCoinPickup();
       }
 
       const collisionIndex = getFirstCollidingObstacleIndex(runtime.player, runtime.obstacles);
@@ -230,13 +242,16 @@ export const GameLoop = ({
         if (runtime.shields > 0) {
           runtime.shields -= 1;
           runtime.obstacles.splice(collisionIndex, 1);
+          onShieldBlock();
         } else if (runtime.elapsed < runtime.invulnerableUntil) {
           runtime.obstacles.splice(collisionIndex, 1);
         } else if (!runtime.hasRevived) {
+          onCrash();
           openReviveOverlay();
           syncSnapshot(true);
           return;
         } else {
+          onCrash();
           gameOver();
           return;
         }
@@ -244,7 +259,17 @@ export const GameLoop = ({
 
       syncSnapshot();
     },
-    [gameOver, openReviveOverlay, playArea.height, playArea.width, syncSnapshot],
+    [
+      gameOver,
+      onCoinPickup,
+      onCrash,
+      onShieldBlock,
+      onShieldPickup,
+      openReviveOverlay,
+      playArea.height,
+      playArea.width,
+      syncSnapshot,
+    ],
   );
 
   const loop = useCallback(
@@ -357,15 +382,17 @@ export const GameLoop = ({
   );
 
   const openPauseOverlay = useCallback(() => {
+    onButtonClick();
     stopLoop();
     setOverlayType('pause');
     setSnapshot((prev) => ({ ...prev, isPaused: true }));
-  }, [stopLoop]);
+  }, [onButtonClick, stopLoop]);
 
   const closePauseOverlayAndResume = useCallback(() => {
+    onButtonClick();
     setOverlayType('none');
     startLoop();
-  }, [startLoop]);
+  }, [onButtonClick, startLoop]);
 
   const continueFromRevive = useCallback(async () => {
     const runtime = runtimeRef.current;
@@ -375,6 +402,7 @@ export const GameLoop = ({
 
     setIsSpendingGold(true);
     try {
+      onButtonClick();
       await onSpendGold(GAME_CONFIG.economy.reviveCost);
 
       runtime.hasRevived = true;
@@ -391,14 +419,16 @@ export const GameLoop = ({
     } finally {
       setIsSpendingGold(false);
     }
-  }, [onSpendGold, startLoop, syncSnapshot, totalGold]);
+  }, [onButtonClick, onSpendGold, startLoop, syncSnapshot, totalGold]);
 
   const finishRun = useCallback(() => {
+    onButtonClick();
     setOverlayType('none');
     gameOver();
-  }, [gameOver]);
+  }, [gameOver, onButtonClick]);
 
   const restartRun = useCallback(() => {
+    onButtonClick();
     stopLoop();
     setOverlayType('none');
     setIsSpendingGold(false);
@@ -409,7 +439,7 @@ export const GameLoop = ({
     }
 
     onRestart();
-  }, [initRuntime, onRestart, playArea.height, playArea.width, stopLoop]);
+  }, [initRuntime, onButtonClick, onRestart, playArea.height, playArea.width, stopLoop]);
 
   useEffect(() => {
     if (playArea.width <= 0 || playArea.height <= 0) {
