@@ -11,6 +11,7 @@ interface GameOverScreenProps {
   totalGold: number;
   onRetry: () => void;
   onBackToMenu: () => void;
+  onButtonClick: () => void;
 }
 
 export const GameOverScreen = ({
@@ -20,6 +21,7 @@ export const GameOverScreen = ({
   totalGold,
   onRetry,
   onBackToMenu,
+  onButtonClick,
 }: GameOverScreenProps) => {
   const isNewRecord = score > 0 && score === highScore;
 
@@ -40,11 +42,23 @@ export const GameOverScreen = ({
 
       {isNewRecord ? <Text style={styles.recordBadge}>New Record!</Text> : null}
 
-      <Pressable style={styles.primaryButton} onPress={onRetry}>
+      <Pressable
+        style={styles.primaryButton}
+        onPress={() => {
+          onButtonClick();
+          onRetry();
+        }}
+      >
         <Text style={styles.buttonText}>Play Again</Text>
       </Pressable>
 
-      <Pressable style={styles.secondaryButton} onPress={onBackToMenu}>
+      <Pressable
+        style={styles.secondaryButton}
+        onPress={() => {
+          onButtonClick();
+          onBackToMenu();
+        }}
+      >
         <Text style={styles.buttonText}>Main Menu</Text>
       </Pressable>
     </View>

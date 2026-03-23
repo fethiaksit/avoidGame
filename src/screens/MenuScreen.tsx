@@ -14,6 +14,7 @@ interface MenuScreenProps {
   unlockedCharacters: CharacterUnlockMap;
   onSelectSkin: (skin: CharacterSkinKey) => void;
   onUnlockSkin: (skin: CharacterSkinKey) => void;
+  onButtonClick: () => void;
 }
 
 const GoldBadge = ({ amount }: { amount: number }) => (
@@ -91,6 +92,7 @@ export const MenuScreen = ({
   unlockedCharacters,
   onSelectSkin,
   onUnlockSkin,
+  onButtonClick,
 }: MenuScreenProps) => {
   const [isStoreOpen, setIsStoreOpen] = useState(false);
 
@@ -103,18 +105,36 @@ export const MenuScreen = ({
           <Text style={styles.highScore}>High Score: {highScore}</Text>
           <GoldBadge amount={totalGold} />
 
-          <Pressable style={styles.storeButton} onPress={() => setIsStoreOpen(true)}>
+          <Pressable
+            style={styles.storeButton}
+            onPress={() => {
+              onButtonClick();
+              setIsStoreOpen(true);
+            }}
+          >
             <Ionicons name="storefront" size={20} color={GAME_COLORS.text} />
             <Text style={styles.storeButtonText}>Store</Text>
           </Pressable>
 
-          <Pressable style={styles.button} onPress={onStart}>
+          <Pressable
+            style={styles.button}
+            onPress={() => {
+              onButtonClick();
+              onStart();
+            }}
+          >
             <Text style={styles.buttonText}>Start</Text>
           </Pressable>
         </>
       ) : (
         <View style={styles.shopSection}>
-          <Pressable style={styles.storeBackButton} onPress={() => setIsStoreOpen(false)}>
+          <Pressable
+            style={styles.storeBackButton}
+            onPress={() => {
+              onButtonClick();
+              setIsStoreOpen(false);
+            }}
+          >
             <Ionicons name="arrow-back" size={18} color={GAME_COLORS.text} />
             <Text style={styles.storeBackButtonText}>Back</Text>
           </Pressable>
@@ -141,8 +161,14 @@ export const MenuScreen = ({
                 gold={totalGold}
                 isUnlocked={unlockedCharacters[skin.key]}
                 isSelected={selectedSkin === skin.key}
-                onSelect={() => onSelectSkin(skin.key)}
-                onUnlock={() => onUnlockSkin(skin.key)}
+                onSelect={() => {
+                  onButtonClick();
+                  onSelectSkin(skin.key);
+                }}
+                onUnlock={() => {
+                  onButtonClick();
+                  onUnlockSkin(skin.key);
+                }}
               />
             ))}
           </View>
