@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { SettingsPanel } from './src/components/SettingsPanel';
 import { GameOverScreen } from './src/screens/GameOverScreen';
 import { GameScreen } from './src/screens/GameScreen';
 import { MenuScreen } from './src/screens/MenuScreen';
@@ -14,6 +15,8 @@ import {
   getDefaultUnlockMap,
 } from './src/game/characters';
 import { GAME_COLORS } from './src/game/constants';
+import { useAudioSettings } from './src/hooks/useAudioSettings';
+import { useGameSounds } from './src/hooks/useGameSounds';
 import { getHighScore, saveHighScoreIfNeeded } from './src/storage/highScore';
 import {
   loadProgression,
@@ -22,19 +25,14 @@ import {
   saveUnlockedCharacters,
 } from './src/storage/progression';
 import { CharacterUnlockMap, GameStatus } from './src/types/game';
-import { useGameSounds } from './src/hooks/useGameSounds';
 
 export default function App() {
-  const {
-    playCoin,
-    playShieldOn,
-    playShieldBlock,
-    playCrash,
-    playClick,
-    playGameOver,
-  } = useGameSounds();
+  const { soundEnabled, isSettingsReady, setSoundEnabled } = useAudioSettings();
+  const { playCoin, playShieldOn, playShieldBlock, playCrash, playClick, playGameOver } =
+    useGameSounds({ soundEnabled });
   const [status, setStatus] = useState<GameStatus>('menu');
   const [isReady, setIsReady] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [score, setScore] = useState(0);
   const [earnedGold, setEarnedGold] = useState(0);
   const [highScore, setHighScore] = useState(0);
@@ -93,24 +91,27 @@ export default function App() {
     [totalGold, unlockedCharacters],
   );
 
-  const onGameOver = useCallback(async (finalScore: number, runEarnedGold: number) => {
-    playGameOver();
-    setScore(finalScore);
-    setEarnedGold(runEarnedGold);
-    setStatus('gameOver');
+  const onGameOver = useCallback(
+    async (finalScore: number, runEarnedGold: number) => {
+      playGameOver();
+      setScore(finalScore);
+      setEarnedGold(runEarnedGold);
+      setStatus('gameOver');
 
-    if (runEarnedGold > 0) {
-      let nextGoldValue = 0;
-      setTotalGold((prev) => {
-        nextGoldValue = prev + runEarnedGold;
-        return nextGoldValue;
-      });
-      await saveGold(nextGoldValue);
-    }
+      if (runEarnedGold > 0) {
+        let nextGoldValue = 0;
+        setTotalGold((prev) => {
+          nextGoldValue = prev + runEarnedGold;
+          return nextGoldValue;
+        });
+        await saveGold(nextGoldValue);
+      }
 
-    const best = await saveHighScoreIfNeeded(finalScore);
-    setHighScore(best);
-  }, [playGameOver]);
+      const best = await saveHighScoreIfNeeded(finalScore);
+      setHighScore(best);
+    },
+    [playGameOver],
+  );
 
   const onSpendGold = useCallback(async (amount: number) => {
     let nextGoldValue = 0;
@@ -123,7 +124,7 @@ export default function App() {
 
   const onBackToMenu = useCallback(() => setStatus('menu'), []);
 
-  if (!isReady) {
+  if (!isReady || !isSettingsReady) {
     return (
       <GestureHandlerRootView style={styles.root}>
         <SafeAreaView style={styles.loaderContainer}>
@@ -175,6 +176,15 @@ export default function App() {
             onButtonClick={playClick}
           />
         ) : null}
+
+        <SettingsPanel
+          isOpen={isSettingsOpen}
+          soundEnabled={soundEnabled}
+          onOpen={() => setIsSettingsOpen(true)}
+          onClose={() => setIsSettingsOpen(false)}
+          onSoundEnabledChange={setSoundEnabled}
+          onButtonClick={playClick}
+        />
       </SafeAreaView>
     </GestureHandlerRootView>
   );
