@@ -53,21 +53,16 @@ interface GameRuntime {
 }
 
 const POWER_UP_RENDER_SCALE = 2;
-const SNAPSHOT_INTERVAL_SECONDS = 1 / 30;
+const SNAPSHOT_INTERVAL_SECONDS = 1 / 40;
 
 type OverlayType = 'none' | 'pause' | 'revive';
 
 const removeIndexesInPlace = <T,>(items: T[], indexes: number[]) => {
   if (indexes.length === 0) return;
-  const removeSet = new Set(indexes);
-  let writeIndex = 0;
-  for (let index = 0; index < items.length; index += 1) {
-    if (!removeSet.has(index)) {
-      items[writeIndex] = items[index];
-      writeIndex += 1;
-    }
+  indexes.sort((a, b) => b - a);
+  for (let index = 0; index < indexes.length; index += 1) {
+    items.splice(indexes[index], 1);
   }
-  items.length = writeIndex;
 };
 
 export const GameLoop = ({
@@ -116,6 +111,7 @@ export const GameLoop = ({
   const lastSnapshotTimeRef = useRef<number>(0);
   const isRunningRef = useRef(false);
   const latestTouchXRef = useRef<number | null>(null);
+  const collisionCheckAccumulatorRef = useRef(0);
 
   const playerY = useMemo(
     () => Math.max(0, playArea.height - GAME_CONFIG.player.bottomOffset - playerSize),
@@ -154,6 +150,7 @@ export const GameLoop = ({
       rafIdRef.current = null;
     }
     lastFrameTimeRef.current = null;
+    collisionCheckAccumulatorRef.current = 0;
   }, []);
 
   const gameOver = useCallback(() => {
@@ -237,23 +234,27 @@ export const GameLoop = ({
         onCoinPickup();
       }
 
-      const collisionIndex = getFirstCollidingObstacleIndex(runtime.player, runtime.obstacles);
-      if (collisionIndex !== -1) {
-        if (runtime.shields > 0) {
-          runtime.shields -= 1;
-          runtime.obstacles.splice(collisionIndex, 1);
-          onShieldBlock();
-        } else if (runtime.elapsed < runtime.invulnerableUntil) {
-          runtime.obstacles.splice(collisionIndex, 1);
-        } else if (!runtime.hasRevived) {
-          onCrash();
-          openReviveOverlay();
-          syncSnapshot(true);
-          return;
-        } else {
-          onCrash();
-          gameOver();
-          return;
+      collisionCheckAccumulatorRef.current += clampedDt;
+      if (collisionCheckAccumulatorRef.current >= 1 / 55) {
+        collisionCheckAccumulatorRef.current = 0;
+        const collisionIndex = getFirstCollidingObstacleIndex(runtime.player, runtime.obstacles);
+        if (collisionIndex !== -1) {
+          if (runtime.shields > 0) {
+            runtime.shields -= 1;
+            runtime.obstacles.splice(collisionIndex, 1);
+            onShieldBlock();
+          } else if (runtime.elapsed < runtime.invulnerableUntil) {
+            runtime.obstacles.splice(collisionIndex, 1);
+          } else if (!runtime.hasRevived) {
+            onCrash();
+            openReviveOverlay();
+            syncSnapshot(true);
+            return;
+          } else {
+            onCrash();
+            gameOver();
+            return;
+          }
         }
       }
 
@@ -309,6 +310,8 @@ export const GameLoop = ({
         speed: GAME_CONFIG.player.speed,
         targetX: spawnX,
         obstacleCollisionScale: playerObstacleCollisionScale,
+        colliderInsetX: selectedCharacterSkin.colliderInset?.x ?? 0.15,
+        colliderInsetY: selectedCharacterSkin.colliderInset?.y ?? 0.15,
       },
       obstacles: [],
       powerUps: [],
@@ -323,6 +326,7 @@ export const GameLoop = ({
     };
 
     lastSnapshotTimeRef.current = 0;
+    collisionCheckAccumulatorRef.current = 0;
     setOverlayType('none');
 
     setSnapshot({
@@ -339,7 +343,13 @@ export const GameLoop = ({
     });
 
     startLoop();
-  }, [playerObstacleCollisionScale, playerSize, startLoop]);
+  }, [
+    playerObstacleCollisionScale,
+    playerSize,
+    selectedCharacterSkin.colliderInset?.x,
+    selectedCharacterSkin.colliderInset?.y,
+    startLoop,
+  ]);
 
   const updatePlayerTargetFromTouch = useCallback(
     (touchX: number) => {
@@ -357,8 +367,15 @@ export const GameLoop = ({
   const panGesture = useMemo(
     () =>
       Gesture.Pan()
-        .minDistance(6)
+        .minDistance(0)
         .runOnJS(true)
+        .onTouchesDown((event) => {
+          const touchX = event.changedTouches[0]?.x;
+          if (typeof touchX === 'number') {
+            latestTouchXRef.current = touchX;
+            updatePlayerTargetFromTouch(touchX);
+          }
+        })
         .onUpdate((event) => {
           const nextX = event.x;
           const prevX = latestTouchXRef.current;
@@ -457,12 +474,23 @@ export const GameLoop = ({
     runtime.player.targetX = Math.max(0, Math.min(runtime.player.targetX, maxX));
     runtime.player.size = playerSize;
     runtime.player.obstacleCollisionScale = playerObstacleCollisionScale;
+    runtime.player.colliderInsetX = selectedCharacterSkin.colliderInset?.x ?? 0.15;
+    runtime.player.colliderInsetY = selectedCharacterSkin.colliderInset?.y ?? 0.15;
     runtime.player.y = Math.max(0, playArea.height - GAME_CONFIG.player.bottomOffset - playerSize);
     const resizedMaxX = Math.max(0, playArea.width - playerSize);
     runtime.player.x = Math.max(0, Math.min(runtime.player.x, resizedMaxX));
     runtime.player.targetX = Math.max(0, Math.min(runtime.player.targetX, resizedMaxX));
     syncSnapshot(true);
-  }, [initRuntime, playArea.height, playArea.width, playerObstacleCollisionScale, playerSize, syncSnapshot]);
+  }, [
+    initRuntime,
+    playArea.height,
+    playArea.width,
+    playerObstacleCollisionScale,
+    playerSize,
+    selectedCharacterSkin.colliderInset?.x,
+    selectedCharacterSkin.colliderInset?.y,
+    syncSnapshot,
+  ]);
 
   useEffect(() => {
     return () => {

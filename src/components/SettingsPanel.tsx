@@ -1,6 +1,7 @@
 import React from 'react';
 import { Modal, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { GAME_COLORS } from '../game/constants';
 
@@ -21,10 +22,18 @@ export const SettingsPanel = ({
   onSoundEnabledChange,
   onButtonClick,
 }: SettingsPanelProps) => {
+  const insets = useSafeAreaInsets();
+
   return (
     <>
       <Pressable
-        style={styles.settingsButton}
+        style={[
+          styles.settingsButton,
+          {
+            top: Math.max(insets.top + 8, 12),
+            right: Math.max(insets.right + 12, 12),
+          },
+        ]}
         onPress={() => {
           onButtonClick();
           onOpen();
@@ -69,8 +78,6 @@ export const SettingsPanel = ({
 const styles = StyleSheet.create({
   settingsButton: {
     position: 'absolute',
-    top: 12,
-    right: 12,
     width: 38,
     height: 38,
     borderRadius: 12,

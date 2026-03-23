@@ -16,6 +16,10 @@ export interface CharacterSkin {
   placeholderColor: string;
   sizeMultiplier?: number;
   obstacleCollisionScale?: number;
+  colliderInset?: {
+    x: number;
+    y: number;
+  };
 }
 
 export const CHARACTER_SKINS: Record<CharacterSkinKey, CharacterSkin> = {
@@ -25,7 +29,7 @@ export const CHARACTER_SKINS: Record<CharacterSkinKey, CharacterSkin> = {
     cost: 0,
     placeholderColor: '#60a5fa',
     sizeMultiplier: 0.8,
-
+    colliderInset: { x: 0.15, y: 0.15 },
   },
   ninja: {
     key: 'ninja',
@@ -33,7 +37,7 @@ export const CHARACTER_SKINS: Record<CharacterSkinKey, CharacterSkin> = {
     cost: 10,
     image: require('../../assets/ninja.png'),
     sizeMultiplier: 0.8,
-
+    colliderInset: { x: 0.2, y: 0.17 },
     placeholderColor: '#a78bfa',
   },
   cat: {
@@ -42,7 +46,7 @@ export const CHARACTER_SKINS: Record<CharacterSkinKey, CharacterSkin> = {
     cost: 15,
     image: require('../../assets/cat.png'),
     sizeMultiplier: 0.8,
-
+    colliderInset: { x: 0.18, y: 0.16 },
     placeholderColor: '#f59e0b',
   },
   rocket: {
@@ -51,6 +55,7 @@ export const CHARACTER_SKINS: Record<CharacterSkinKey, CharacterSkin> = {
     cost: 30,
     image: require('../../assets/rocket.png'),
     sizeMultiplier: 0.8,
+    colliderInset: { x: 0.2, y: 0.15 },
     placeholderColor: '#ef4444',
   },
 
@@ -62,6 +67,7 @@ export const CHARACTER_SKINS: Record<CharacterSkinKey, CharacterSkin> = {
     placeholderColor: '#22c55e',
     sizeMultiplier: 1,
     obstacleCollisionScale: 0.8,
+    colliderInset: { x: 0.22, y: 0.16 },
   },
   car2: {
     key: 'car2',
@@ -71,6 +77,7 @@ export const CHARACTER_SKINS: Record<CharacterSkinKey, CharacterSkin> = {
     placeholderColor: '#3b82f6',
     sizeMultiplier: 1,
     obstacleCollisionScale: 0.8,
+    colliderInset: { x: 0.22, y: 0.16 },
   },
   car3: {
     key: 'car3',
@@ -80,6 +87,7 @@ export const CHARACTER_SKINS: Record<CharacterSkinKey, CharacterSkin> = {
     placeholderColor: '#a855f7',
     sizeMultiplier: 1,
     obstacleCollisionScale: 0.8,
+    colliderInset: { x: 0.22, y: 0.16 },
   },
   car4: {
     key: 'car4',
@@ -89,6 +97,7 @@ export const CHARACTER_SKINS: Record<CharacterSkinKey, CharacterSkin> = {
     placeholderColor: '#f43f5e',
     sizeMultiplier: 1,
     obstacleCollisionScale: 0.8,
+    colliderInset: { x: 0.22, y: 0.16 },
   },
 };
 

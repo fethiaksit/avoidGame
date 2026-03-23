@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 import { SettingsPanel } from './src/components/SettingsPanel';
 import { GameOverScreen } from './src/screens/GameOverScreen';
@@ -137,8 +137,9 @@ export default function App() {
 
   return (
     <GestureHandlerRootView style={styles.root}>
-      <SafeAreaView style={styles.appContainer}>
-        <StatusBar style="light" />
+      <SafeAreaProvider>
+        <SafeAreaView style={styles.appContainer}>
+          <StatusBar style="light" hidden={status === 'playing'} />
         {status === 'menu' ? (
           <MenuScreen
             highScore={highScore}
@@ -177,15 +178,16 @@ export default function App() {
           />
         ) : null}
 
-        <SettingsPanel
-          isOpen={isSettingsOpen}
-          soundEnabled={soundEnabled}
-          onOpen={() => setIsSettingsOpen(true)}
-          onClose={() => setIsSettingsOpen(false)}
-          onSoundEnabledChange={setSoundEnabled}
-          onButtonClick={playClick}
-        />
-      </SafeAreaView>
+          <SettingsPanel
+            isOpen={isSettingsOpen}
+            soundEnabled={soundEnabled}
+            onOpen={() => setIsSettingsOpen(true)}
+            onClose={() => setIsSettingsOpen(false)}
+            onSoundEnabledChange={setSoundEnabled}
+            onButtonClick={playClick}
+          />
+        </SafeAreaView>
+      </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }
