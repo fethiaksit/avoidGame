@@ -5,7 +5,7 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
-    "icon": ".assets/enemymoving.png",
+    "icon": "./assets/enemymoving.png",
     "ios": {
       "supportsTablet": true
     },
