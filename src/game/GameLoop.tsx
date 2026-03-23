@@ -272,9 +272,9 @@ export const GameLoop = ({ onGameOver, selectedSkin, totalGold }: GameLoopProps)
   );
 
   const panGesture = Gesture.Pan()
-    .minDistance(10)
+    .minDistance(6)
     .onUpdate((event) => {
-      if (Math.abs(event.translationX) < 4) return;
+      if (Math.abs(event.translationX) < 2) return;
       runOnJS(updatePlayerTargetFromTouch)(event.x);
     });
 

@@ -16,7 +16,7 @@ export const GAME_CONFIG = {
   player: {
     size: 64,
     bottomOffset: 80,
-    speed: 420,
+    speed: 1000,
     smoothing: 20,
   },
   obstacle: {
