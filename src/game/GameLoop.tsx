@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { LayoutChangeEvent, Pressable, StyleSheet, Text, View } from 'react-native';
+import { LayoutChangeEvent, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Canvas } from '@shopify/react-native-skia';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { runOnJS } from 'react-native-reanimated';
@@ -28,6 +28,8 @@ import { GameSnapshot, GoldEntity, ObstacleEntity, PlayerEntity, PowerUpEntity }
 
 interface GameLoopProps {
   onGameOver: (score: number, earnedGold: number) => void;
+  onRestart: () => void;
+  onSpendGold: (amount: number) => Promise<void>;
   selectedSkin: CharacterSkinKey;
   totalGold: number;
 }
@@ -42,11 +44,35 @@ interface GameRuntime {
   level: number;
   spawnTimer: number;
   shields: number;
+  hasRevived: boolean;
+  invulnerableUntil: number;
 }
 
 const POWER_UP_RENDER_SCALE = 2;
+const SNAPSHOT_INTERVAL_SECONDS = 1 / 30;
 
-export const GameLoop = ({ onGameOver, selectedSkin, totalGold }: GameLoopProps) => {
+type OverlayType = 'none' | 'pause' | 'revive';
+
+const removeIndexesInPlace = <T,>(items: T[], indexes: number[]) => {
+  if (indexes.length === 0) return;
+  const removeSet = new Set(indexes);
+  let writeIndex = 0;
+  for (let index = 0; index < items.length; index += 1) {
+    if (!removeSet.has(index)) {
+      items[writeIndex] = items[index];
+      writeIndex += 1;
+    }
+  }
+  items.length = writeIndex;
+};
+
+export const GameLoop = ({
+  onGameOver,
+  onRestart,
+  onSpendGold,
+  selectedSkin,
+  totalGold,
+}: GameLoopProps) => {
   const selectedCharacterSkin = useMemo(() => CHARACTER_SKINS[selectedSkin], [selectedSkin]);
   const playerSize = useMemo(() => {
     const baseSize = GAME_CONFIG.player.size;
@@ -70,10 +96,13 @@ export const GameLoop = ({ onGameOver, selectedSkin, totalGold }: GameLoopProps)
     shields: 0,
     earnedGold: 0,
   });
+  const [overlayType, setOverlayType] = useState<OverlayType>('none');
+  const [isSpendingGold, setIsSpendingGold] = useState(false);
 
   const runtimeRef = useRef<GameRuntime | null>(null);
   const rafIdRef = useRef<number | null>(null);
   const lastFrameTimeRef = useRef<number | null>(null);
+  const lastSnapshotTimeRef = useRef<number>(0);
   const isRunningRef = useRef(false);
 
   const playerY = useMemo(
@@ -81,19 +110,28 @@ export const GameLoop = ({ onGameOver, selectedSkin, totalGold }: GameLoopProps)
     [playArea.height, playerSize],
   );
 
-  const syncSnapshot = useCallback(() => {
+  const hasInvulnerability =
+    runtimeRef.current !== null && runtimeRef.current.elapsed < runtimeRef.current.invulnerableUntil;
+
+  const syncSnapshot = useCallback((force = false) => {
     const runtime = runtimeRef.current;
     if (!runtime) return;
 
+    if (!force && runtime.elapsed - lastSnapshotTimeRef.current < SNAPSHOT_INTERVAL_SECONDS) {
+      return;
+    }
+
+    lastSnapshotTimeRef.current = runtime.elapsed;
+
     setSnapshot({
       playerX: runtime.player.x,
-      obstacles: runtime.obstacles,
-      powerUps: runtime.powerUps,
+      obstacles: [...runtime.obstacles],
+      powerUps: [...runtime.powerUps],
       score: getScoreFromElapsed(runtime.elapsed),
       level: runtime.level,
       isPaused: !isRunningRef.current,
       shields: runtime.shields,
-      goldItems: runtime.goldItems,
+      goldItems: [...runtime.goldItems],
       earnedGold: runtime.earnedGold,
     });
   }, []);
@@ -113,6 +151,12 @@ export const GameLoop = ({ onGameOver, selectedSkin, totalGold }: GameLoopProps)
     const earnedGold = runtimeRef.current?.earnedGold ?? 0;
     onGameOver(finalScore, earnedGold);
   }, [onGameOver, stopLoop]);
+
+  const openReviveOverlay = useCallback(() => {
+    stopLoop();
+    setOverlayType('revive');
+    setSnapshot((prev) => ({ ...prev, isPaused: true }));
+  }, [stopLoop]);
 
   const updateFrame = useCallback(
     (dt: number) => {
@@ -153,34 +197,31 @@ export const GameLoop = ({ onGameOver, selectedSkin, totalGold }: GameLoopProps)
         runtime.obstacles.push(createObstacle(playArea.width, runtime.level, runtime.elapsed));
       }
 
-      const shouldSpawnShield =
-        runtime.powerUps.length < GAME_CONFIG.powerUp.maxOnScreen && shouldSpawnShieldPowerUp(clampedDt);
-
-      if (shouldSpawnShield) {
+      if (
+        runtime.powerUps.length < GAME_CONFIG.powerUp.maxOnScreen &&
+        shouldSpawnShieldPowerUp(clampedDt)
+      ) {
         runtime.powerUps.push(createShieldPowerUp(playArea.width));
       }
 
-      const shouldSpawnGoldItem =
-        runtime.goldItems.length < GAME_CONFIG.gold.maxOnScreen && shouldSpawnGold(clampedDt);
-
-      if (shouldSpawnGoldItem) {
+      if (runtime.goldItems.length < GAME_CONFIG.gold.maxOnScreen && shouldSpawnGold(clampedDt)) {
         runtime.goldItems.push(createGold(playArea.width));
       }
 
-      runtime.obstacles = updateObstacles(runtime.obstacles, clampedDt, playArea.width, playArea.height);
-      runtime.powerUps = updatePowerUps(runtime.powerUps, clampedDt, playArea.height);
-      runtime.goldItems = updateGold(runtime.goldItems, clampedDt, playArea.height);
+      updateObstacles(runtime.obstacles, clampedDt, playArea.width, playArea.height);
+      updatePowerUps(runtime.powerUps, clampedDt, playArea.height);
+      updateGold(runtime.goldItems, clampedDt, playArea.height);
 
       const collectedPowerUpIndexes = getCollectedPowerUpIndexes(runtime.player, runtime.powerUps);
       if (collectedPowerUpIndexes.length > 0) {
         runtime.shields += collectedPowerUpIndexes.length;
-        runtime.powerUps = runtime.powerUps.filter((_, index) => !collectedPowerUpIndexes.includes(index));
+        removeIndexesInPlace(runtime.powerUps, collectedPowerUpIndexes);
       }
 
       const collectedGoldIndexes = getCollectedGoldIndexes(runtime.player, runtime.goldItems);
       if (collectedGoldIndexes.length > 0) {
         runtime.earnedGold += collectedGoldIndexes.length;
-        runtime.goldItems = runtime.goldItems.filter((_, index) => !collectedGoldIndexes.includes(index));
+        removeIndexesInPlace(runtime.goldItems, collectedGoldIndexes);
       }
 
       const collisionIndex = getFirstCollidingObstacleIndex(runtime.player, runtime.obstacles);
@@ -188,6 +229,12 @@ export const GameLoop = ({ onGameOver, selectedSkin, totalGold }: GameLoopProps)
         if (runtime.shields > 0) {
           runtime.shields -= 1;
           runtime.obstacles.splice(collisionIndex, 1);
+        } else if (runtime.elapsed < runtime.invulnerableUntil) {
+          runtime.obstacles.splice(collisionIndex, 1);
+        } else if (!runtime.hasRevived) {
+          openReviveOverlay();
+          syncSnapshot(true);
+          return;
         } else {
           gameOver();
           return;
@@ -196,7 +243,7 @@ export const GameLoop = ({ onGameOver, selectedSkin, totalGold }: GameLoopProps)
 
       syncSnapshot();
     },
-    [gameOver, playArea.height, playArea.width, syncSnapshot],
+    [gameOver, openReviveOverlay, playArea.height, playArea.width, syncSnapshot],
   );
 
   const loop = useCallback(
@@ -224,10 +271,7 @@ export const GameLoop = ({ onGameOver, selectedSkin, totalGold }: GameLoopProps)
 
   const initRuntime = useCallback((width: number, height: number) => {
     const spawnX = Math.max(0, width / 2 - playerSize / 2);
-    const spawnY = Math.max(
-      0,
-      height - GAME_CONFIG.player.bottomOffset - playerSize,
-    );
+    const spawnY = Math.max(0, height - GAME_CONFIG.player.bottomOffset - playerSize);
 
     runtimeRef.current = {
       player: {
@@ -246,7 +290,12 @@ export const GameLoop = ({ onGameOver, selectedSkin, totalGold }: GameLoopProps)
       level: 0,
       spawnTimer: 0,
       shields: 0,
+      hasRevived: false,
+      invulnerableUntil: 0,
     };
+
+    lastSnapshotTimeRef.current = 0;
+    setOverlayType('none');
 
     setSnapshot({
       playerX: spawnX,
@@ -266,7 +315,7 @@ export const GameLoop = ({ onGameOver, selectedSkin, totalGold }: GameLoopProps)
   const updatePlayerTargetFromTouch = useCallback(
     (touchX: number) => {
       const runtime = runtimeRef.current;
-      if (!runtime || playArea.width <= 0) return;
+      if (!runtime || playArea.width <= 0 || !isRunningRef.current) return;
 
       const halfSize = runtime.player.size / 2;
       const maxX = Math.max(0, playArea.width - runtime.player.size);
@@ -292,20 +341,44 @@ export const GameLoop = ({ onGameOver, selectedSkin, totalGold }: GameLoopProps)
     [playArea.height, playArea.width],
   );
 
-  const togglePause = useCallback(() => {
-    if (isRunningRef.current) {
-      stopLoop();
-      setSnapshot((prev) => ({ ...prev, isPaused: true }));
-      return;
-    }
+  const openPauseOverlay = useCallback(() => {
+    stopLoop();
+    setOverlayType('pause');
+    setSnapshot((prev) => ({ ...prev, isPaused: true }));
+  }, [stopLoop]);
 
-    if (!runtimeRef.current) {
-      initRuntime(playArea.width, playArea.height);
-      return;
-    }
-
+  const closePauseOverlayAndResume = useCallback(() => {
+    setOverlayType('none');
     startLoop();
-  }, [initRuntime, playArea.height, playArea.width, startLoop, stopLoop]);
+  }, [startLoop]);
+
+  const continueFromRevive = useCallback(async () => {
+    const runtime = runtimeRef.current;
+    if (!runtime || runtime.hasRevived || totalGold < GAME_CONFIG.economy.reviveCost) {
+      return;
+    }
+
+    setIsSpendingGold(true);
+    await onSpendGold(GAME_CONFIG.economy.reviveCost);
+
+    runtime.hasRevived = true;
+    runtime.invulnerableUntil = runtime.elapsed + GAME_CONFIG.revive.invulnerabilitySeconds;
+
+    const collisionIndex = getFirstCollidingObstacleIndex(runtime.player, runtime.obstacles);
+    if (collisionIndex !== -1) {
+      runtime.obstacles.splice(collisionIndex, 1);
+    }
+
+    setIsSpendingGold(false);
+    setOverlayType('none');
+    syncSnapshot(true);
+    startLoop();
+  }, [onSpendGold, startLoop, syncSnapshot, totalGold]);
+
+  const restartRun = useCallback(() => {
+    stopLoop();
+    onRestart();
+  }, [onRestart, stopLoop]);
 
   useEffect(() => {
     if (playArea.width <= 0 || playArea.height <= 0) {
@@ -323,14 +396,11 @@ export const GameLoop = ({ onGameOver, selectedSkin, totalGold }: GameLoopProps)
     runtime.player.targetX = Math.max(0, Math.min(runtime.player.targetX, maxX));
     runtime.player.size = playerSize;
     runtime.player.obstacleCollisionScale = playerObstacleCollisionScale;
-    runtime.player.y = Math.max(
-      0,
-      playArea.height - GAME_CONFIG.player.bottomOffset - playerSize,
-    );
+    runtime.player.y = Math.max(0, playArea.height - GAME_CONFIG.player.bottomOffset - playerSize);
     const resizedMaxX = Math.max(0, playArea.width - playerSize);
     runtime.player.x = Math.max(0, Math.min(runtime.player.x, resizedMaxX));
     runtime.player.targetX = Math.max(0, Math.min(runtime.player.targetX, resizedMaxX));
-    syncSnapshot();
+    syncSnapshot(true);
   }, [initRuntime, playArea.height, playArea.width, playerObstacleCollisionScale, playerSize, syncSnapshot]);
 
   useEffect(() => {
@@ -338,6 +408,9 @@ export const GameLoop = ({ onGameOver, selectedSkin, totalGold }: GameLoopProps)
       stopLoop();
     };
   }, [stopLoop]);
+
+  const canRevive = totalGold >= GAME_CONFIG.economy.reviveCost;
+  const handleModalRequestClose = overlayType === 'pause' ? closePauseOverlayAndResume : undefined;
 
   return (
     <View style={styles.wrapper}>
@@ -352,12 +425,8 @@ export const GameLoop = ({ onGameOver, selectedSkin, totalGold }: GameLoopProps)
           <Text style={styles.goldEarned}>+{snapshot.earnedGold}</Text>
         </View>
 
-        <Pressable onPress={togglePause} style={styles.pauseButton}>
-          <Ionicons
-            name={snapshot.isPaused ? 'play' : 'pause'}
-            size={18}
-            color={GAME_COLORS.text}
-          />
+        <Pressable onPress={openPauseOverlay} style={styles.pauseButton}>
+          <Ionicons name="pause" size={18} color={GAME_COLORS.text} />
         </Pressable>
       </View>
 
@@ -369,7 +438,7 @@ export const GameLoop = ({ onGameOver, selectedSkin, totalGold }: GameLoopProps)
               y={playerY}
               size={playerSize}
               skin={selectedCharacterSkin}
-              hasShield={snapshot.shields > 0}
+              hasShield={snapshot.shields > 0 || hasInvulnerability}
             />
 
             {snapshot.obstacles.map((obstacle) => (
@@ -409,6 +478,51 @@ export const GameLoop = ({ onGameOver, selectedSkin, totalGold }: GameLoopProps)
           </Canvas>
         </View>
       </GestureDetector>
+
+      <Modal visible={overlayType !== 'none'} transparent animationType="fade" onRequestClose={handleModalRequestClose}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Ionicons
+              name={overlayType === 'pause' ? 'pause-circle' : 'heart-circle'}
+              size={46}
+              color={overlayType === 'pause' ? '#60a5fa' : '#f87171'}
+            />
+            <Text style={styles.modalTitle}>
+              {overlayType === 'pause' ? 'Oyun Duraklatıldı' : 'Devam Etmek İster misin?'}
+            </Text>
+
+            {overlayType === 'revive' ? (
+              <Text style={styles.modalSubtitle}>10 altın karşılığında bu koşuya bir kez daha devam edebilirsin.</Text>
+            ) : null}
+
+            {overlayType === 'pause' ? (
+              <>
+                <Pressable style={styles.modalPrimaryButton} onPress={closePauseOverlayAndResume}>
+                  <Text style={styles.modalButtonText}>Devam Et</Text>
+                </Pressable>
+                <Pressable style={styles.modalSecondaryButton} onPress={restartRun}>
+                  <Text style={styles.modalButtonText}>Tekrar Başla</Text>
+                </Pressable>
+              </>
+            ) : (
+              <>
+                <Pressable
+                  style={[styles.modalPrimaryButton, (!canRevive || isSpendingGold) && styles.modalButtonDisabled]}
+                  onPress={continueFromRevive}
+                  disabled={!canRevive || isSpendingGold}
+                >
+                  <Text style={styles.modalButtonText}>
+                    {canRevive ? 'Devam Et (-10 Altın)' : 'Yetersiz Altın'}
+                  </Text>
+                </Pressable>
+                <Pressable style={styles.modalSecondaryButton} onPress={restartRun}>
+                  <Text style={styles.modalButtonText}>Tekrar Başla</Text>
+                </Pressable>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -464,5 +578,60 @@ const styles = StyleSheet.create({
   },
   canvas: {
     flex: 1,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(2, 6, 23, 0.75)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  modalCard: {
+    width: '100%',
+    maxWidth: 340,
+    borderRadius: 16,
+    paddingVertical: 24,
+    paddingHorizontal: 18,
+    backgroundColor: '#111827',
+    borderWidth: 1,
+    borderColor: '#374151',
+    alignItems: 'center',
+    gap: 12,
+  },
+  modalTitle: {
+    color: GAME_COLORS.text,
+    fontSize: 22,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  modalSubtitle: {
+    color: GAME_COLORS.mutedText,
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 6,
+  },
+  modalPrimaryButton: {
+    marginTop: 8,
+    width: '100%',
+    backgroundColor: '#2563eb',
+    borderRadius: 12,
+    paddingVertical: 13,
+    alignItems: 'center',
+  },
+  modalSecondaryButton: {
+    width: '100%',
+    backgroundColor: '#374151',
+    borderRadius: 12,
+    paddingVertical: 13,
+    alignItems: 'center',
+  },
+  modalButtonDisabled: {
+    backgroundColor: '#475569',
+    opacity: 0.7,
+  },
+  modalButtonText: {
+    color: GAME_COLORS.text,
+    fontWeight: '700',
+    fontSize: 15,
   },
 });

@@ -13,6 +13,12 @@ export const GAME_COLORS = {
 };
 
 export const GAME_CONFIG = {
+  economy: {
+    reviveCost: 10,
+  },
+  revive: {
+    invulnerabilitySeconds: 1.5,
+  },
   player: {
     size: 64,
     bottomOffset: 80,
