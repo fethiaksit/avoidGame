@@ -62,34 +62,29 @@ export const updateObstacles = (
   playAreaWidth: number,
   playAreaHeight: number,
 ): ObstacleEntity[] => {
-  return obstacles
-    .map((obstacle) => {
-      const nextAge = obstacle.age + dt;
-      const nextY = obstacle.y + obstacle.speed * dt;
+  let writeIndex = 0;
+  for (let i = 0; i < obstacles.length; i += 1) {
+    const obstacle = obstacles[i];
+    obstacle.age += dt;
+    obstacle.y += obstacle.speed * dt;
 
-      if (obstacle.type !== 'zigzag') {
-        return {
-          ...obstacle,
-          y: nextY,
-          age: nextAge,
-        };
-      }
-
+    if (obstacle.type === 'zigzag') {
       const baseX = obstacle.baseX ?? obstacle.x;
       const amplitude = obstacle.zigzagAmplitude ?? GAME_CONFIG.obstacle.zigzagAmplitudeMin;
       const frequency = obstacle.zigzagFrequency ?? GAME_CONFIG.obstacle.zigzagFrequencyMin;
-      const waveOffset = Math.sin(nextAge * frequency) * amplitude;
+      const waveOffset = Math.sin(obstacle.age * frequency) * amplitude;
       const rawX = baseX + waveOffset;
-      const clampedX = Math.max(0, Math.min(rawX, playAreaWidth - obstacle.width));
+      obstacle.x = Math.max(0, Math.min(rawX, playAreaWidth - obstacle.width));
+    }
 
-      return {
-        ...obstacle,
-        x: clampedX,
-        y: nextY,
-        age: nextAge,
-      };
-    })
-    .filter((obstacle) => obstacle.y < playAreaHeight + obstacle.height + 20);
+    if (obstacle.y < playAreaHeight + obstacle.height + 20) {
+      obstacles[writeIndex] = obstacle;
+      writeIndex += 1;
+    }
+  }
+
+  obstacles.length = writeIndex;
+  return obstacles;
 };
 
 export const createShieldPowerUp = (playAreaWidth: number): PowerUpEntity => {
@@ -115,12 +110,18 @@ export const updatePowerUps = (
   dt: number,
   playAreaHeight: number,
 ): PowerUpEntity[] => {
-  return powerUps
-    .map((powerUp) => ({
-      ...powerUp,
-      y: powerUp.y + powerUp.speed * dt,
-    }))
-    .filter((powerUp) => powerUp.y < playAreaHeight + powerUp.height + 20);
+  let writeIndex = 0;
+  for (let i = 0; i < powerUps.length; i += 1) {
+    const powerUp = powerUps[i];
+    powerUp.y += powerUp.speed * dt;
+    if (powerUp.y < playAreaHeight + powerUp.height + 20) {
+      powerUps[writeIndex] = powerUp;
+      writeIndex += 1;
+    }
+  }
+
+  powerUps.length = writeIndex;
+  return powerUps;
 };
 
 export const createGold = (playAreaWidth: number): GoldEntity => {
@@ -140,12 +141,18 @@ export const createGold = (playAreaWidth: number): GoldEntity => {
 };
 
 export const updateGold = (goldItems: GoldEntity[], dt: number, playAreaHeight: number): GoldEntity[] => {
-  return goldItems
-    .map((gold) => ({
-      ...gold,
-      y: gold.y + gold.speed * dt,
-    }))
-    .filter((gold) => gold.y < playAreaHeight + gold.size + 20);
+  let writeIndex = 0;
+  for (let i = 0; i < goldItems.length; i += 1) {
+    const gold = goldItems[i];
+    gold.y += gold.speed * dt;
+    if (gold.y < playAreaHeight + gold.size + 20) {
+      goldItems[writeIndex] = gold;
+      writeIndex += 1;
+    }
+  }
+
+  goldItems.length = writeIndex;
+  return goldItems;
 };
 
 export const getSpawnInterval = (elapsed: number) => {
