@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { LayoutChangeEvent, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Canvas } from '@shopify/react-native-skia';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { runOnJS } from 'react-native-reanimated';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { CHARACTER_SKINS, CharacterSkinKey } from './characters';
@@ -95,23 +94,23 @@ export const GameLoop = ({
     isPaused: false,
     shields: 0,
     earnedGold: 0,
+    hasInvulnerability: false,
   });
   const [overlayType, setOverlayType] = useState<OverlayType>('none');
   const [isSpendingGold, setIsSpendingGold] = useState(false);
 
   const runtimeRef = useRef<GameRuntime | null>(null);
   const rafIdRef = useRef<number | null>(null);
+  const loopInstanceIdRef = useRef(0);
   const lastFrameTimeRef = useRef<number | null>(null);
   const lastSnapshotTimeRef = useRef<number>(0);
   const isRunningRef = useRef(false);
+  const latestTouchXRef = useRef<number | null>(null);
 
   const playerY = useMemo(
     () => Math.max(0, playArea.height - GAME_CONFIG.player.bottomOffset - playerSize),
     [playArea.height, playerSize],
   );
-
-  const hasInvulnerability =
-    runtimeRef.current !== null && runtimeRef.current.elapsed < runtimeRef.current.invulnerableUntil;
 
   const syncSnapshot = useCallback((force = false) => {
     const runtime = runtimeRef.current;
@@ -133,11 +132,13 @@ export const GameLoop = ({
       shields: runtime.shields,
       goldItems: [...runtime.goldItems],
       earnedGold: runtime.earnedGold,
+      hasInvulnerability: runtime.elapsed < runtime.invulnerableUntil,
     });
   }, []);
 
   const stopLoop = useCallback(() => {
     isRunningRef.current = false;
+    loopInstanceIdRef.current += 1;
     if (rafIdRef.current !== null) {
       cancelAnimationFrame(rafIdRef.current);
       rafIdRef.current = null;
@@ -247,15 +248,15 @@ export const GameLoop = ({
   );
 
   const loop = useCallback(
-    (time: number) => {
-      if (!isRunningRef.current) return;
+    (time: number, loopId: number) => {
+      if (!isRunningRef.current || loopId !== loopInstanceIdRef.current) return;
 
       const last = lastFrameTimeRef.current ?? time;
       lastFrameTimeRef.current = time;
       updateFrame((time - last) / 1000);
 
-      if (isRunningRef.current) {
-        rafIdRef.current = requestAnimationFrame(loop);
+      if (isRunningRef.current && loopId === loopInstanceIdRef.current) {
+        rafIdRef.current = requestAnimationFrame((nextTime) => loop(nextTime, loopId));
       }
     },
     [updateFrame],
@@ -264,9 +265,11 @@ export const GameLoop = ({
   const startLoop = useCallback(() => {
     if (isRunningRef.current || !runtimeRef.current) return;
     isRunningRef.current = true;
+    const loopId = loopInstanceIdRef.current + 1;
+    loopInstanceIdRef.current = loopId;
     setSnapshot((prev) => ({ ...prev, isPaused: false }));
     lastFrameTimeRef.current = null;
-    rafIdRef.current = requestAnimationFrame(loop);
+    rafIdRef.current = requestAnimationFrame((time) => loop(time, loopId));
   }, [loop]);
 
   const initRuntime = useCallback((width: number, height: number) => {
@@ -307,6 +310,7 @@ export const GameLoop = ({
       isPaused: false,
       shields: 0,
       earnedGold: 0,
+      hasInvulnerability: false,
     });
 
     startLoop();
@@ -325,12 +329,23 @@ export const GameLoop = ({
     [playArea.width],
   );
 
-  const panGesture = Gesture.Pan()
-    .minDistance(6)
-    .onUpdate((event) => {
-      if (Math.abs(event.translationX) < 2) return;
-      runOnJS(updatePlayerTargetFromTouch)(event.x);
-    });
+  const panGesture = useMemo(
+    () =>
+      Gesture.Pan()
+        .minDistance(6)
+        .runOnJS(true)
+        .onUpdate((event) => {
+          const nextX = event.x;
+          const prevX = latestTouchXRef.current;
+          if (prevX !== null && Math.abs(nextX - prevX) < 2) return;
+          latestTouchXRef.current = nextX;
+          updatePlayerTargetFromTouch(nextX);
+        })
+        .onEnd(() => {
+          latestTouchXRef.current = null;
+        }),
+    [updatePlayerTargetFromTouch],
+  );
 
   const onLayout = useCallback(
     (event: LayoutChangeEvent) => {
@@ -359,21 +374,29 @@ export const GameLoop = ({
     }
 
     setIsSpendingGold(true);
-    await onSpendGold(GAME_CONFIG.economy.reviveCost);
+    try {
+      await onSpendGold(GAME_CONFIG.economy.reviveCost);
 
-    runtime.hasRevived = true;
-    runtime.invulnerableUntil = runtime.elapsed + GAME_CONFIG.revive.invulnerabilitySeconds;
+      runtime.hasRevived = true;
+      runtime.invulnerableUntil = runtime.elapsed + GAME_CONFIG.revive.invulnerabilitySeconds;
 
-    const collisionIndex = getFirstCollidingObstacleIndex(runtime.player, runtime.obstacles);
-    if (collisionIndex !== -1) {
-      runtime.obstacles.splice(collisionIndex, 1);
+      const collisionIndex = getFirstCollidingObstacleIndex(runtime.player, runtime.obstacles);
+      if (collisionIndex !== -1) {
+        runtime.obstacles.splice(collisionIndex, 1);
+      }
+
+      setOverlayType('none');
+      syncSnapshot(true);
+      startLoop();
+    } finally {
+      setIsSpendingGold(false);
     }
-
-    setIsSpendingGold(false);
-    setOverlayType('none');
-    syncSnapshot(true);
-    startLoop();
   }, [onSpendGold, startLoop, syncSnapshot, totalGold]);
+
+  const finishRun = useCallback(() => {
+    setOverlayType('none');
+    gameOver();
+  }, [gameOver]);
 
   const restartRun = useCallback(() => {
     stopLoop();
@@ -438,7 +461,7 @@ export const GameLoop = ({
               y={playerY}
               size={playerSize}
               skin={selectedCharacterSkin}
-              hasShield={snapshot.shields > 0 || hasInvulnerability}
+              hasShield={snapshot.shields > 0 || snapshot.hasInvulnerability}
             />
 
             {snapshot.obstacles.map((obstacle) => (
@@ -492,7 +515,11 @@ export const GameLoop = ({
             </Text>
 
             {overlayType === 'revive' ? (
-              <Text style={styles.modalSubtitle}>10 altın karşılığında bu koşuya bir kez daha devam edebilirsin.</Text>
+              <Text style={styles.modalSubtitle}>
+                {canRevive
+                  ? 'Bu koşuya 10 altınla yalnızca bir kez daha devam edebilirsin.'
+                  : 'Altının yetersiz. İstersen koşuyu burada bitirebilirsin.'}
+              </Text>
             ) : null}
 
             {overlayType === 'pause' ? (
@@ -512,11 +539,11 @@ export const GameLoop = ({
                   disabled={!canRevive || isSpendingGold}
                 >
                   <Text style={styles.modalButtonText}>
-                    {canRevive ? 'Devam Et (-10 Altın)' : 'Yetersiz Altın'}
+                    10 Altınla Devam Et
                   </Text>
                 </Pressable>
-                <Pressable style={styles.modalSecondaryButton} onPress={restartRun}>
-                  <Text style={styles.modalButtonText}>Tekrar Başla</Text>
+                <Pressable style={styles.modalSecondaryButton} onPress={finishRun}>
+                  <Text style={styles.modalButtonText}>Oyunu Bitir</Text>
                 </Pressable>
               </>
             )}
