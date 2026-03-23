@@ -400,8 +400,16 @@ export const GameLoop = ({
 
   const restartRun = useCallback(() => {
     stopLoop();
+    setOverlayType('none');
+    setIsSpendingGold(false);
+    latestTouchXRef.current = null;
+
+    if (playArea.width > 0 && playArea.height > 0) {
+      initRuntime(playArea.width, playArea.height);
+    }
+
     onRestart();
-  }, [onRestart, stopLoop]);
+  }, [initRuntime, onRestart, playArea.height, playArea.width, stopLoop]);
 
   useEffect(() => {
     if (playArea.width <= 0 || playArea.height <= 0) {
@@ -528,7 +536,7 @@ export const GameLoop = ({
                   <Text style={styles.modalButtonText}>Devam Et</Text>
                 </Pressable>
                 <Pressable style={styles.modalSecondaryButton} onPress={restartRun}>
-                  <Text style={styles.modalButtonText}>Tekrar Başla</Text>
+                  <Text style={styles.modalButtonText}>Yeniden Başlat</Text>
                 </Pressable>
               </>
             ) : (
