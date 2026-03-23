@@ -13,9 +13,9 @@ type LoadedSounds = Partial<Record<SoundKey, Audio.Sound>>;
 
 const SOUND_SOURCES: Record<SoundKey, number> = {
   coin: require('../../assets/sounds/coin.mp3'),
-  shieldOn: require('../../assets/sounds/shield_on.mp3'),
-  shieldBlock: require('../../assets/sounds/shield_block.mp3'),
-  crash: require('../../assets/sounds/crash.mp3'),
+  shieldOn: require('../../assets/sounds/sheild.mp3'),
+  shieldBlock: require('../../assets/sounds/sheild.mp3'),
+  crash: require('../../assets/sounds/impact.mp3'),
   click: require('../../assets/sounds/click.mp3'),
   gameOver: require('../../assets/sounds/gameover.mp3'),
 };
